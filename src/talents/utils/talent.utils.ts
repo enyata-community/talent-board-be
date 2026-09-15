@@ -63,6 +63,16 @@ export const applyTalentFilters = (
     );
   }
 
+/**
+ * Apply filters for talent search queries, ensuring partial match capabilities with ranking optimization.
+ */
+
+  if (query.jobtitle) {
+    qb.andWhere(`${alias}.job_title ILIKE :jobtitle`, {
+      jobtitle: `%${query.jobtitle}%`,
+    });
+  }
+
   if (query.skills?.length) {
     const skillQuery = query.skills;
 
