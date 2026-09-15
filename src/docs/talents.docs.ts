@@ -157,7 +157,7 @@ export const searchTalents = `
    *         description: Pagination direction
    *     responses:
    *       200:
-   *         description: Talents fetched successfully
+   *         description: Talents fetched successfully. Returns an empty result set with message "Talent not found" when no job title matches.
    *         content:
    *           application/json:
    *             schema:
