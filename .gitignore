@@ -7,6 +7,8 @@ dist/
 *.log
 coverage/
 *.pem
+.DS_Store
+.vscode/
 
 package-lock.json
 yarn.lock
