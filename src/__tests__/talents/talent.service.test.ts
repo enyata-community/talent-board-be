@@ -220,6 +220,31 @@ describe("Talent Service", () => {
       expect(skillHits).toEqual(expect.arrayContaining(["react"]));
     });
 
+    it("filters talents by job title", async () => {
+      await setupUsers({ job_title: "Senior Frontend Engineer" });
+      await setupUsers({ job_title: "Product Designer" });
+
+      const res = await talentService.searchTalents({
+        jobtitle: "frontend",
+        limit: 10,
+      });
+
+      expect(res.results).toHaveLength(1);
+      expect(res.results[0].job_title).toBe("Senior Frontend Engineer");
+    });
+
+    it("returns no results when no talent matches the job title", async () => {
+      await setupUsers({ job_title: "Product Designer" });
+
+      const res = await talentService.searchTalents({
+        jobtitle: "Backend Engineer",
+        limit: 10,
+      });
+
+      expect(res.results).toHaveLength(0);
+      expect(res.count).toBe(0);
+    });
+
     it("filters by skills array and experience", async () => {
       await setupUsers({ experience_level: ExperienceLevel.EXPERT }, {}, [
         "Node.js",

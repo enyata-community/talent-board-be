@@ -106,6 +106,11 @@ export const searchTalents = `
    *           type: string
    *         description: Full-text search on name or skills
    *       - in: query
+   *         name: jobtitle
+   *         schema:
+   *           type: string
+   *         description: Filter by job title (case-insensitive partial match)
+   *       - in: query
    *         name: skills
    *         schema:
    *           type: string
@@ -152,7 +157,7 @@ export const searchTalents = `
    *         description: Pagination direction
    *     responses:
    *       200:
-   *         description: Talents fetched successfully
+   *         description: Talents fetched successfully. Returns an empty result set with message "Talent not found" when no job title matches.
    *         content:
    *           application/json:
    *             schema:
