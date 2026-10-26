@@ -94,8 +94,7 @@ export class SplitUserProfilesAndAdjustFields1747165812599
 
     await queryRunner.query(`ALTER TABLE "users"
       DROP COLUMN "state",
-      DROP COLUMN "country",
-      DROP COLUMN "linkedin_profile";
+      DROP COLUMN "country";
     `);
   }
 }

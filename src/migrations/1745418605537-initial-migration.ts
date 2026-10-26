@@ -3,6 +3,7 @@ import { MigrationInterface, QueryRunner } from "typeorm";
 export class InitialMigration1745418605537 implements MigrationInterface {
   name = "InitialMigration1745418605537";
   public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`);
     await queryRunner.query(`
       CREATE TYPE "public"."users_provider_enum" AS ENUM('google', 'linkedin');
       CREATE TYPE "public"."users_role_enum" AS ENUM('talent', 'recruiter');

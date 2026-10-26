@@ -33,7 +33,11 @@
     "test": "jest --runInBand",
     "test:watch": "jest --watch",
     "test:docker": "docker compose --profile test run --rm backend_test",
-    "test:docker:watch": "docker compose --profile test run --rm backend_test yarn test:watch"
+    "test:docker:watch": "docker compose --profile test run --rm backend_test yarn test:watch",
+    "admin:bootstrap": "ts-node -r tsconfig-paths/register src/admin/scripts/bootstrapSuperAdmin.ts",
+    "admin:bootstrap:prod": "node build/src/admin/scripts/bootstrapSuperAdmin.js",
+    "admin:seed:local": "ts-node -r tsconfig-paths/register src/admin/scripts/seedLocalSuperAdmin.ts",
+    "migration:show": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:show -d ./src/datasource.ts"
   },
   "repository": {
     "type": "git",

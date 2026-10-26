@@ -5,9 +5,11 @@ import {
   TableForeignKey,
 } from "typeorm";
 
-export class CreatePasswordResetTokensTable1740000000000
+export class CreatePasswordResetTokensTable1745418605538
   implements MigrationInterface
 {
+  name = "CreatePasswordResetTokensTable1745418605538";
+
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.createTable(
       new Table({
@@ -50,16 +52,8 @@ export class CreatePasswordResetTokensTable1740000000000
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    const table = await queryRunner.getTable("password_reset_tokens");
-    if (table) {
-      const foreignKey = table.foreignKeys.find(
-        (fk) => fk.columnNames.indexOf("user_id") !== -1,
-      );
-      if (foreignKey) {
-        await queryRunner.dropForeignKey("password_reset_tokens", foreignKey);
-      }
-    }
-    await queryRunner.query(`DROP INDEX "IDX_PASSWORD_RESET_EMAIL_TOKEN"`);
+    // dropTable removes its foreign keys and indexes through the query runner,
+    // keeping TypeORM's cached table metadata consistent during full rollback.
     await queryRunner.dropTable("password_reset_tokens");
   }
 }

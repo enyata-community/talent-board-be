@@ -12,6 +12,7 @@ export const resetPasswordSchema = z
     password: z
       .string({ required_error: "Password is required" })
       .min(8, "Password must be at least 8 characters")
+      .max(128, "Password must be at most 128 characters")
       .regex(/[a-z]/, "Password must include a lowercase letter")
       .regex(/[A-Z]/, "Password must include an uppercase letter")
       .regex(/\d/, "Password must include a number")

@@ -58,7 +58,7 @@ const errorHandler = (
 
   if (env === "development") {
     sendErrorDev(err, req, res);
-  } else if (env === "production") {
+  } else {
     if (err instanceof JsonWebTokenError) err = handleJWTError(err);
     sendErrorProd(err, req, res);
   }

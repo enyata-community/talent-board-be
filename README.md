@@ -253,3 +253,11 @@ Auto-generated from the files in `src/docs/`.
 - Wallet and Payments Integration
 
 ---
+
+## Admin Portal
+
+See [Admin Portal setup and API contract](docs/admin-portal.md) for configuration, Super Admin bootstrap, browser authentication, and verification.
+
+Database schemas in development and production are migration-managed; application
+startup does not create tables. For an approved destructive local rebuild, see
+[the local database rebuild procedure](docs/local-database-rebuild.md).

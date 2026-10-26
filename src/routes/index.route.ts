@@ -1,3 +1,4 @@
+import adminRoutes, { superAdminRouter } from "../admin/admin.route";
 import authRoutes from "@src/auth/auth.route";
 import dashboardRoutes from "@src/dashboard/dashboard.route";
 import messagingRoutes from "@src/messaging/messaging.route";
@@ -9,6 +10,8 @@ import { Router } from "express";
 
 const router = Router();
 
+router.use("/admin", adminRoutes);
+router.use("/superadmin", superAdminRouter);
 router.use("/auth", authRoutes);
 router.use("/onboarding", onboardingRoutes);
 router.use("/skills", skillsRoutes);

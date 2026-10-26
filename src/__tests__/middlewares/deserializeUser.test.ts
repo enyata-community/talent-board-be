@@ -1,6 +1,10 @@
 import { Request, Response } from "express";
 import AppDataSource from "../../datasource";
-import { UserEntity } from "../../entities/user.entity";
+import {
+  UserEntity,
+  UserRole,
+  isInternalRole,
+} from "../../entities/user.entity";
 import { deserializeUser } from "../../middlewares/deserializeUser";
 import { signToken, verifyToken } from "../../utils/jwt";
 
@@ -27,9 +31,43 @@ const mockUser = {
 describe("deserializeUser middleware", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest
+      .mocked(isInternalRole)
+      .mockImplementation(
+        (role) => role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN,
+      );
     mockNext.mockClear();
   });
 
+  it.each([
+    [UserRole.ADMIN, "access"],
+    [UserRole.ADMIN, "refresh"],
+    [UserRole.SUPER_ADMIN, "access"],
+    [UserRole.SUPER_ADMIN, "refresh"],
+  ])(
+    "rejects internal role %s through public %s authentication",
+    async (role, tokenType) => {
+      (verifyToken as jest.Mock).mockReturnValue({ id: mockUser.id });
+      (UserEntity.findOne as jest.Mock).mockResolvedValue({
+        ...mockUser,
+        role,
+      });
+      const req = {
+        headers:
+          tokenType === "access"
+            ? { authorization: "Bearer valid-access" }
+            : {},
+        cookies:
+          tokenType === "refresh" ? { refresh_token: "valid-refresh" } : {},
+      } as unknown as Request;
+      await deserializeUser(req, mockRes, mockNext);
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({ statusCode: 401 }),
+      );
+      expect(req.user).toBeUndefined();
+      expect(signToken).not.toHaveBeenCalled();
+    },
+  );
   it("should attach user to request if access token is valid", async () => {
     (verifyToken as jest.Mock).mockImplementation((token, _) =>
       token === "valid-access" ? { id: mockUser.id } : null,
