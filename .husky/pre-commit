@@ -1,7 +1,11 @@
+. "$(dirname "$0")/yarn.sh"
+
 echo "🔍 Running Pre-Commit Hooks..."
 
-yarn || { echo '❌ Yarn install failed!'; exit 1; }
-yarn lint-staged || { echo '❌ Lint staged files failed!'; exit 1; }
-yarn build || { echo '❌ Build failed! Please fix errors before committing.'; exit 1; }
+if [ ! -d node_modules ]; then
+  run_yarn install --frozen-lockfile || { echo '❌ Yarn install failed!'; exit 1; }
+fi
+run_yarn lint-staged || { echo '❌ Lint staged files failed!'; exit 1; }
+run_yarn build || { echo '❌ Build failed! Please fix errors before committing.'; exit 1; }
 
 echo "✅ Pre-Commit checks passed successfully!"
