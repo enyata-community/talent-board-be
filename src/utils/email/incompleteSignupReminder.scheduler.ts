@@ -35,6 +35,9 @@ export const runIncompleteSignupReminderSweep = async () => {
   const users = await manager
     .createQueryBuilder(UserEntity, "user")
     .where("user.profile_completed = false")
+    .andWhere("(user.role IS NULL OR user.role NOT IN (:...internalRoles))", {
+      internalRoles: ["admin", "super_admin"],
+    })
     .andWhere("user.incomplete_signup_reminder_count < :maxReminders", {
       maxReminders,
     })

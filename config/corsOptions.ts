@@ -1,16 +1,16 @@
 import config from "config";
 import { CorsOptions } from "cors";
 
+const adminOrigin = new URL(config.get<string>("ADMIN_FRONTEND_URL")).origin;
+
 const devOrigins = [
+  adminOrigin,
   "http://localhost:3000",
   "http://localhost:8000",
-  "https://accounts.google.com",
-  "https://www.linkedin.com",
 ];
 
 const prodOrigins = [
-  "https://accounts.google.com",
-  "https://www.linkedin.com",
+  adminOrigin,
   "http://localhost:3000",
   config.get<string>("BASE_URL"),
   config.get<string>("FRONTEND_URL"),
@@ -39,6 +39,7 @@ const corsOptions: CorsOptions = {
     "Content-Type",
     "Authorization",
     "x-refresh-token",
+    "x-admin-csrf",
   ],
 };
 

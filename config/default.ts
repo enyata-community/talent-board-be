@@ -1,4 +1,6 @@
 export default {
+  ADMIN_FRONTEND_URL:
+    process.env.TALENTS_ADMIN_FRONTEND_URL || "http://localhost:3000",
   SENTRY_DSN: process.env.TALENTS_SENTRY_DSN || "",
   SENTRY_PROFILING_ENABLED:
     String(process.env.TALENTS_SENTRY_PROFILING_ENABLED) === "true",

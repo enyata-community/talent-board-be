@@ -1,5 +1,5 @@
 import AppDataSource from "@src/datasource";
-import { UserEntity } from "@src/entities/user.entity";
+import { UserEntity, isInternalRole } from "@src/entities/user.entity";
 import { IncompleteSignupReminderJobData } from "@src/interfaces";
 import { incompleteSignupReminderQueue } from "@src/queues/incompleteSignupReminder.queue";
 import { getNextIncompleteSignupReminderDate } from "@src/utils/email/incompleteSignupReminderSchedule";
@@ -21,7 +21,7 @@ const worker = new Worker<IncompleteSignupReminderJobData>(
       where: { id: job.data.userId },
     });
 
-    if (!user || user.profile_completed) {
+    if (!user || isInternalRole(user.role) || user.profile_completed) {
       return;
     }
 

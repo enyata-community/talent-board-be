@@ -52,6 +52,16 @@ const swaggerDefinition: SwaggerDefinition = {
   ],
   components: {
     securitySchemes: {
+      superAdminSession: {
+        type: "apiKey",
+        in: "cookie",
+        name: "talentboard_superadmin_session",
+      },
+      adminSession: {
+        type: "apiKey",
+        in: "cookie",
+        name: "talentboard_admin_session",
+      },
       bearerAuth: {
         type: "http",
         scheme: "bearer",

@@ -1,3 +1,4 @@
+import { adminInvitationEmail } from "./email/templates/adminInvitation";
 import {
   incompleteSignupEmailTemplate,
   resetPasswordEmailTemplate,
@@ -8,6 +9,9 @@ import {
 } from "./email/index";
 
 export const EmailService = {
+  async sendAdminInvitation(to: string, setupUrl: string) {
+    return sendEmail({ to, template: adminInvitationEmail(setupUrl) });
+  },
   async sendVerification(to: string, otp: string, ttlMinutes?: number) {
     const template = verifyEmailTemplate({
       otp,

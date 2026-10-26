@@ -1,6 +1,10 @@
 import { EmailOtpEntity } from "@src/entities/emailOtp.entity";
 import { PasswordResetTokenEntity } from "@src/entities/passwordResetToken.entity";
-import { UserEntity, UserProvider } from "@src/entities/user.entity";
+import {
+  UserEntity,
+  UserProvider,
+  isInternalRole,
+} from "@src/entities/user.entity";
 import { ClientError } from "@src/exceptions/clientError";
 import { ConflictError } from "@src/exceptions/conflictError";
 import { NotFoundError } from "@src/exceptions/notFoundError";
@@ -79,6 +83,8 @@ export class LocalAuthService {
       ? config.get<number>("OTP_TTL_MINUTES")
       : 10, // OTP validity duration
   ): Promise<void> {
+    if (isInternalRole(user.role))
+      throw new UnauthorizedError("Invalid account");
     // Invalidate any existing unused OTPs for this email to ensure only the latest one is valid
     await entityManager.update(
       EmailOtpEntity,
@@ -121,7 +127,12 @@ export class LocalAuthService {
       const user = await tx.findOne(UserEntity, { where: { email } });
 
       // Only allow verification for LOCAL users
-      if (!user || user.provider !== UserProvider.LOCAL) return null;
+      if (
+        !user ||
+        isInternalRole(user.role) ||
+        user.provider !== UserProvider.LOCAL
+      )
+        return null;
 
       user.is_email_verified = true;
       await tx.save(user);
@@ -155,7 +166,11 @@ export class LocalAuthService {
     // Return custom error messages for better UX, but avoid leaking info about which part is incorrect
     // This also prevents user enumeration attacks by not revealing whether the email exists or not
     // This handles both non-existent users, users with incorrect passwords in the same way and Oauth users trying to log in with email/password as well as users who haven't verified their email yet.
-    if (!user || user.provider !== UserProvider.LOCAL) {
+    if (
+      !user ||
+      isInternalRole(user.role) ||
+      user.provider !== UserProvider.LOCAL
+    ) {
       throw new UnauthorizedError("Invalid email or password");
     }
 
@@ -181,7 +196,8 @@ export class LocalAuthService {
       : 60;
     const user = await entityManager.findOne(UserEntity, { where: { email } });
 
-    if (!user) throw new NotFoundError("User not found");
+    if (!user || isInternalRole(user.role))
+      throw new NotFoundError("User not found");
     if (user.is_email_verified)
       throw new ClientError("Email is already verified");
 
@@ -221,7 +237,8 @@ export class LocalAuthService {
   ): Promise<void> {
     const user = await entityManager.findOne(UserEntity, { where: { email } });
 
-    if (!user) throw new NotFoundError("User not found");
+    if (!user || isInternalRole(user.role))
+      throw new NotFoundError("User not found");
 
     // Only local users can reset their password via email
     if (user.provider !== UserProvider.LOCAL) {
@@ -336,7 +353,8 @@ export class LocalAuthService {
       }
 
       const user = await tx.findOne(UserEntity, { where: { email } });
-      if (!user) throw new NotFoundError("User not found");
+      if (!user || isInternalRole(user.role))
+        throw new NotFoundError("User not found");
 
       // Hash the new password and update the user's password in the database. Also mark the token as used by setting used_at to the current timestamp.
       const hashedPassword = await hash(password);

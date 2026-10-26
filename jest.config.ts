@@ -15,6 +15,7 @@ const config: Config = {
   collectCoverage: true,
   coverageDirectory: "coverage",
   coverageReporters: ["json", "lcov", "text", "clover"],
+  modulePathIgnorePatterns: ["<rootDir>/build/"],
   testPathIgnorePatterns: ["<rootDir>/config/", "<rootDir>/build/"],
   detectOpenHandles: true,
   forceExit: true,

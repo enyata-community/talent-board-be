@@ -3,7 +3,7 @@ import type { NextFunction, Request, Response } from "express";
 import { EntityManager } from "typeorm";
 import AppDataSource from "../datasource";
 import { RefreshToken } from "../entities/refreshToken.entity";
-import { UserEntity } from "../entities/user.entity";
+import { UserEntity, isInternalRole } from "../entities/user.entity";
 import { UnauthorizedError } from "../exceptions/unauthorizedError";
 import { signToken, verifyToken } from "../utils/jwt";
 import asyncHandler from "./asyncHandler";
@@ -24,7 +24,7 @@ const extractTokens = (req: Request) => {
 const checkUserExists = async (userId: string) => {
   const user = await UserEntity.findOne({ where: { id: userId } });
 
-  if (!user) {
+  if (!user || isInternalRole(user.role)) {
     throw new UnauthorizedError("User not found");
   }
 

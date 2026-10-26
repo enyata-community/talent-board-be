@@ -8,7 +8,7 @@ import {
   IsUrl,
   Length,
 } from "class-validator";
-import { Column, Entity, OneToMany, OneToOne } from "typeorm";
+import { Column, Entity, Index, OneToMany, OneToOne } from "typeorm";
 import ExtendedBaseEntity from "./base.entity";
 import { ConversationThreadEntity } from "./conversationThread.entity";
 import { MessageEntity } from "./message.entity";
@@ -28,9 +28,18 @@ export enum UserProvider {
 export enum UserRole {
   TALENT = "talent",
   RECRUITER = "recruiter",
+  ADMIN = "admin",
+  SUPER_ADMIN = "super_admin",
 }
 
+export const isInternalRole = (role: UserRole | null | undefined) =>
+  role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN;
+
 @Entity({ name: "users" })
+@Index("uq_single_super_admin", ["role"], {
+  unique: true,
+  where: "role = 'super_admin'",
+})
 export class UserEntity extends ExtendedBaseEntity {
   @Column({ nullable: true })
   @Expose()

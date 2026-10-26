@@ -3,6 +3,8 @@ import { MigrationInterface, QueryRunner, TableColumn } from "typeorm";
 export class AddAuditColumnsToEmailOtps1772000004000
   implements MigrationInterface
 {
+  name = "AddAuditColumnsToEmailOtps1772000004000";
+
   public async up(queryRunner: QueryRunner): Promise<void> {
     const table = await queryRunner.getTable("email_otps");
 

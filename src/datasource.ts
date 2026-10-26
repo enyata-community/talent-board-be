@@ -15,7 +15,8 @@ const AppDataSource = new DataSource({
   type: "postgres",
   url: databaseUrl,
   ssl: isProduction ? { rejectUnauthorized: false } : false,
-  synchronize: !isProduction,
+  // Identity backfills must run before old columns can be removed.
+  synchronize: config.get<string>("NODE_ENV") === "test",
   logging: false,
   entities: isCompiled
     ? ["build/src/entities/**/*.js"]

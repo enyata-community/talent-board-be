@@ -19,10 +19,11 @@ export const searchTalents = asyncHandler(
       req.user?.role === "recruiter" ? req.user.id : undefined;
 
     const result = await talentService.searchTalents(req.query, recruiterId);
+    const noJobTitleMatch = Boolean(req.query.jobtitle) && result.count === 0;
 
     res.status(200).json({
       status: "success",
-      message: "Talents fetched successfully",
+      message: noJobTitleMatch ? "Talent not found" : "Talents fetched successfully",
       data: result,
     });
   },

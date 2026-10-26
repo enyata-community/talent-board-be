@@ -1,4 +1,9 @@
-import { UserEntity, UserProvider } from "@src/entities/user.entity";
+import { UnauthorizedError } from "../../exceptions/unauthorizedError";
+import {
+  UserEntity,
+  UserProvider,
+  isInternalRole,
+} from "@src/entities/user.entity";
 import { getInitialIncompleteSignupReminderDate } from "@src/utils/email/incompleteSignupReminderSchedule";
 import log from "@src/utils/logger";
 import { EntityManager } from "typeorm";
@@ -9,16 +14,19 @@ export class GoogleAuthService {
     profileData: GoogleProfile,
     entityManager: EntityManager,
   ): Promise<UserEntity> {
-    const { email } = profileData;
+    const email = profileData.email.trim().toLowerCase();
 
     return await entityManager.transaction(async (tx) => {
       let user = await tx.findOne(UserEntity, {
         where: { email },
       });
 
+      if (user && isInternalRole(user.role))
+        throw new UnauthorizedError("Please use the Admin Portal to log in");
       if (!user) {
         user = tx.create(UserEntity, {
           ...profileData,
+          email,
           provider: UserProvider.GOOGLE,
           profile_completed: false,
           incomplete_signup_next_reminder_at:
