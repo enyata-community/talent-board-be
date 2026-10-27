@@ -18,33 +18,20 @@ let dataSource: DataSource;
 const service = new TalentRecommendationService();
 
 describe("TalentRecommendationService", () => {
-  beforeEach(async () => {
-    await dataSource.query(`DELETE FROM "user_metrics"`);
-    await dataSource.query(`DELETE FROM "saved_talents"`);
-    await dataSource.query(`DELETE FROM "notifications"`);
-    await dataSource.query(`DELETE FROM "talent_profiles"`);
-    await dataSource.query(`DELETE FROM "recruiter_profiles"`);
-    await dataSource.query(`DELETE FROM "users"`);
-  });
-
   beforeAll(async () => {
     dataSource = await initializeDataSource();
+    await dataSource.runMigrations();
   });
-
+  beforeEach(async () => {
+    const tables = await dataSource.query(
+      "SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename NOT IN ('migrations', 'admin_audit_logs')",
+    );
+    await dataSource.query(
+      `TRUNCATE ${tables.map((row: any) => '"' + row.tablename.replace(/"/g, '""') + '"').join(", ")} RESTART IDENTITY CASCADE`,
+    );
+  });
   afterAll(async () => {
-    const entityManager = AppDataSource.manager;
-
-    await entityManager.query(`DELETE FROM "saved_talents"`);
-    await entityManager.query(`DELETE FROM "user_metrics"`);
-    await entityManager.query(`DELETE FROM "notifications"`);
-    await entityManager.query(`DELETE FROM "talent_profiles"`);
-    await entityManager.query(`DELETE FROM "recruiter_profiles"`);
-    await entityManager.query(`DELETE FROM "users"`);
-    await entityManager.query(`DELETE FROM "skills"`);
-
-    if (dataSource.isInitialized) {
-      await AppDataSource.destroy();
-    }
+    if (dataSource?.isInitialized) await dataSource.destroy();
   });
 
   const createSkills = async (names: string[]) => {

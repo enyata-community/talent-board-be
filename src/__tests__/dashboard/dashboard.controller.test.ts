@@ -1,3 +1,4 @@
+import { NotificationType } from "../../entities/notification.entity";
 import { Request, Response } from "express";
 import { mocked } from "jest-mock";
 import {
@@ -62,7 +63,7 @@ describe("Dashboard controller", () => {
     mocked(DashboardService.prototype.getUserNotifications).mockResolvedValue([
       {
         id: "notif-1",
-        type: "message",
+        type: NotificationType.MESSAGE,
         message: "You have a new message",
         read: false,
         timestamp: new Date("2023-01-01T00:00:00.000Z"),
@@ -71,7 +72,7 @@ describe("Dashboard controller", () => {
           first_name: "Jane",
           last_name: "Doe",
           avatar: null,
-          role: "recruiter",
+          role: UserRole.RECRUITER,
         },
       },
     ]);
@@ -120,7 +121,7 @@ describe("Dashboard controller", () => {
       data: [
         {
           id: "notif-1",
-          type: "message",
+          type: NotificationType.MESSAGE,
           message: "You have a new message",
           read: false,
           timestamp: new Date("2023-01-01T00:00:00.000Z"),
@@ -129,7 +130,7 @@ describe("Dashboard controller", () => {
             first_name: "Jane",
             last_name: "Doe",
             avatar: null,
-            role: "recruiter",
+            role: UserRole.RECRUITER,
           },
         },
       ],

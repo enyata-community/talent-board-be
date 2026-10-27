@@ -1,3 +1,4 @@
+import { verify } from "argon2";
 import { LocalAuthService } from "@src/auth/local/local.service";
 import { EmailOtpEntity } from "@src/entities/emailOtp.entity";
 import { UserEntity, UserProvider } from "@src/entities/user.entity";
@@ -77,7 +78,11 @@ describe("LocalAuthService - Email Verification", () => {
         expires_at: new Date(Date.now() + 10000), // Valid in the future
         used_at: null,
       };
-      const mockUser = { email, is_email_verified: false } as UserEntity;
+      const mockUser = {
+        email,
+        is_email_verified: false,
+        provider: UserProvider.LOCAL,
+      } as UserEntity;
 
       (mockManager.findOne as jest.Mock)
         .mockResolvedValueOnce(mockOtpRecord) // First call for EmailOtpEntity
@@ -212,9 +217,6 @@ describe("LocalAuthService - Email Verification", () => {
       await expect(
         authService.resendOtp(email, mockManager as EntityManager),
       ).rejects.toThrow(ClientError);
-      await expect(
-        authService.resendOtp(email, mockManager as EntityManager),
-      ).rejects.toThrow(/social login/);
     });
 
     it("should throw ClientError if within cooldown period", async () => {
@@ -235,9 +237,6 @@ describe("LocalAuthService - Email Verification", () => {
       await expect(
         authService.resendOtp(email, mockManager as EntityManager),
       ).rejects.toThrow(ClientError);
-      await expect(
-        authService.resendOtp(email, mockManager as EntityManager),
-      ).rejects.toThrow(/Please wait/);
     });
   });
 

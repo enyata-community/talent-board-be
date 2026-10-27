@@ -1,0 +1,10 @@
+node_modules/
+build/
+dist/
+coverage/
+data/
+.kilo/
+.worktrees/
+uploads/
+private-uploads/
+yarn.lock

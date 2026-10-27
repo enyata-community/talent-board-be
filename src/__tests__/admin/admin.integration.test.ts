@@ -37,9 +37,7 @@ jest.mock("../../datasource", () => ({ __esModule: true, default: {} }));
 jest.mock("../../utils/email", () => ({
   EmailService: { sendAdminInvitation: jest.fn().mockResolvedValue(undefined) },
 }));
-// Opt-in only: requires a dedicated, disposable PostgreSQL database.
-const suite = process.env.ADMIN_TEST_DATABASE_URL ? describe : describe.skip;
-suite("Admin Portal PostgreSQL integration", () => {
+describe("Admin Portal PostgreSQL integration", () => {
   let ds: DataSource;
   let tokens: string[];
   const invitations = new AdminInvitationService();

@@ -27,6 +27,7 @@ describe("onboard controller", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSendWelcome.mockResolvedValue(undefined);
 
     jest
       .spyOn(OnboardingService.prototype, "onboardUser")

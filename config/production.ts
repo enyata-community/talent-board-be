@@ -1,6 +1,7 @@
 export default {
-  PORT: Number(process.env.TALENTS_PORT) ?? 8000,
-  NODE_ENV: process.env.TALENTS_NODE_ENV,
+  PORT: Number(process.env.TALENTS_PORT || process.env.PORT) || 8000,
+  NODE_ENV:
+    process.env.TALENTS_NODE_ENV || process.env.NODE_ENV || "production",
   API_PREFIX: process.env.TALENTS_API_PREFIX ?? "api/v1",
   APP_NAME: process.env.TALENTS_APP_NAME ?? "Talent Board",
   OTP_TTL_MINUTES: Number(process.env.TALENTS_OTP_TTL_MINUTES) || 10,
