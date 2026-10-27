@@ -91,7 +91,7 @@ export const talentOnboarding = `
  *                             profile:
  *                               type: object
  *                               properties:
- *                                 resume_path:
+ *                                 resume_download_url:
  *                                   type: string
  *                                 portfolio_url:
  *                                   type: string

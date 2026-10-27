@@ -1,3 +1,4 @@
+import { resumeDownloadUrl } from "@src/files/fileUrls";
 import { UserEntity } from "@src/entities/user.entity";
 import { instanceToPlain } from "class-transformer";
 import { resolveAssetUrl } from "./resolveAssetUrl";
@@ -28,8 +29,9 @@ export const sanitizeUser = (user: UserEntity): Record<string, any> => {
 
   if (plainProfile && user.role === "talent") {
     if (plainProfile.resume_path) {
-      plainProfile.resume_path = resolveAssetUrl(plainProfile.resume_path);
+      plainProfile.resume_download_url = resumeDownloadUrl(user.id);
     }
+    delete plainProfile.resume_path;
     if (plainProfile.portfolio_url) {
       plainProfile.portfolio_url = resolveAssetUrl(plainProfile.portfolio_url);
     }

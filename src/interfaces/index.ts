@@ -16,7 +16,6 @@ export interface CustomJwtPayload extends JwtPayload {
 }
 
 export interface UploadConfig {
-  destinationFolder: string;
   fieldname: string;
   allowedMimeTypes: string[];
   maxSizeMB?: number;
@@ -160,7 +159,6 @@ export interface TalentSearchResult {
   id: string;
   first_name: string;
   last_name: string;
-  email: string;
   avatar: string | null;
   state: string;
   country: string;
@@ -171,7 +169,7 @@ export interface TalentSearchResult {
   portfolio_url: string;
   bio: string;
   job_title: string;
-  resume_path: string;
+  resume_download_url?: string;
   upvotes: number;
   metrics?: {
     upvotes: number;

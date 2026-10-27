@@ -52,6 +52,9 @@
   "homepage": "https://github.com/enyata-community/talent-board-be#readme",
   "description": "A talent board application where recruiters hire top talents",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1157.0",
+    "@sentry/node": "^8.9.2",
+    "@sentry/profiling-node": "^8.9.2",
     "argon2": "^0.41.1",
     "axios": "^1.9.0",
     "bullmq": "^5.47.2",
@@ -64,6 +67,7 @@
     "dayjs": "^1.11.13",
     "dotenv": "^16.4.7",
     "express": "4.21.2",
+    "file-type": "16.5.4",
     "helmet": "^8.1.0",
     "hpp": "^0.2.3",
     "html-to-text": "^9.0.5",
@@ -86,9 +90,7 @@
     "swagger-ui-express": "^5.0.1",
     "ts-node": "^10.9.2",
     "typeorm": "^0.3.22",
-    "zod": "^3.24.2",
-    "@sentry/node": "^8.9.2",
-    "@sentry/profiling-node": "^8.9.2"
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.0",

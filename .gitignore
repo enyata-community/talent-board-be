@@ -11,4 +11,7 @@ coverage/
 .vscode/
 
 package-lock.json
-yarn.lock
+
+# User uploads and private local storage
+uploads/
+private-uploads/

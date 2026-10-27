@@ -1,5 +1,4 @@
 import { deserializeUser } from "@src/middlewares/deserializeUser";
-import { injectAvatarPath } from "@src/middlewares/injectAvatarPath";
 import { uploadAvatar } from "@src/middlewares/uploadAvatar";
 import { validateData } from "@src/middlewares/validateData";
 import { Router } from "express";
@@ -13,7 +12,6 @@ router.patch(
   "/me",
   deserializeUser,
   uploadAvatar,
-  injectAvatarPath,
   validateData(updateProfileSchema, ["body"]),
   updateProfile,
 );
