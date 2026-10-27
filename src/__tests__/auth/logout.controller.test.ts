@@ -38,7 +38,7 @@ describe("AuthController - logoutUser", () => {
   it("should invalidate refresh token and clear cookie", async () => {
     const req = {
       cookies: {
-        refreshToken: "mocked_refresh_token",
+        refresh_token: "mocked_refresh_token",
       },
       secure: true,
       headers: {},

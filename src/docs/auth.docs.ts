@@ -19,14 +19,7 @@ export const googleOAuth = `
  *         schema:
  *           type: string
  *         required: false
- *         description: Frontend URL to redirect to after authentication
- *       - in: query
- *         name: include_tokens_in_url
- *         schema:
- *           type: string
- *           enum: [true, false]
- *         required: false
- *         description: Whether to include access and refresh tokens in the redirect URL
+ *         description: Frontend URL on the configured FRONTEND_URL origin
  *     responses:
  *       302:
  *         description: Redirects to Google's authentication page.
@@ -46,7 +39,7 @@ export const googleOAuthCallback = `
  *   get:
  *     summary: Handle Google OAuth callback
  *     tags: [Authentication]
- *     description: Processes authentication response from Google and redirects to the frontend with tokens if requested.
+ *     description: Processes authentication response from Google and redirects to the frontend with a single-use code valid for 60 seconds.
  *     parameters:
  *       - in: query
  *         name: code
@@ -59,10 +52,10 @@ export const googleOAuthCallback = `
  *         schema:
  *           type: string
  *         required: true
- *         description: Encoded redirect_uri and token preferences
+ *         description: Opaque single-use state bound to the initiating browser
  *     responses:
  *       302:
- *         description: Redirects to frontend with access (and optionally refresh) tokens.
+ *         description: Redirects to frontend with a code for POST /api/v1/auth/oauth/exchange.
  *       401:
  *         description: Unauthorized - Google authentication failed
  *         content:
@@ -96,14 +89,7 @@ export const linkedInOAuth = `
  *         schema:
  *           type: string
  *         required: false
- *         description: Frontend URL to redirect to after authentication
- *       - in: query
- *         name: include_tokens_in_url
- *         schema:
- *           type: string
- *           enum: [true, false]
- *         required: false
- *         description: Whether to include access and refresh tokens in the redirect URL
+ *         description: Frontend URL on the configured FRONTEND_URL origin
  *     responses:
  *       302:
  *         description: Redirects to LinkedIn's authentication page.
@@ -123,7 +109,7 @@ export const linkedInOAuthCallback = `
  *   get:
  *     summary: Handle LinkedIn OAuth callback
  *     tags: [Authentication]
- *     description: Processes authentication response from LinkedIn and redirects to the frontend with tokens if requested.
+ *     description: Processes authentication response from LinkedIn and redirects to the frontend with a single-use code valid for 60 seconds.
  *     parameters:
  *       - in: query
  *         name: code
@@ -136,10 +122,10 @@ export const linkedInOAuthCallback = `
  *         schema:
  *           type: string
  *         required: true
- *         description: Encoded redirect_uri and token preferences
+ *         description: Opaque single-use state bound to the initiating browser
  *     responses:
  *       302:
- *         description: Redirects to frontend with access (and optionally refresh) tokens.
+ *         description: Redirects to frontend with a code for POST /api/v1/auth/oauth/exchange.
  *       401:
  *         description: Unauthorized - LinkedIn authentication failed
  *         content:
@@ -270,8 +256,6 @@ export const localVerifyEmail = `
  *                   properties:
  *                     access_token:
  *                       $ref: '#/components/schemas/AccessToken'
- *                     refresh_token:
- *                       $ref: '#/components/schemas/RefreshToken'
  *       400:
  *         description: Invalid or expired OTP
  *         content:
@@ -369,8 +353,6 @@ export const localLogin = `
  *                   properties:
  *                     access_token:
  *                       $ref: '#/components/schemas/AccessToken'
- *                     refresh_token:
- *                       $ref: '#/components/schemas/RefreshToken'
  *       401:
  *         description: Invalid credentials or unverified email
  *         content:
@@ -479,3 +461,30 @@ export const localResetPassword = `
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 `;
+
+/**
+ * @swagger
+ * /api/v1/auth/oauth/exchange:
+ *   post:
+ *     summary: Exchange a browser-bound, single-use OAuth code for a session
+ *     tags: [Authentication]
+ *     description: Requires the oauth_exchange cookie set during the provider callback. Codes expire after 60 seconds. Returns an access token and sets an HttpOnly refresh_token cookie.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [code]
+ *             properties:
+ *               code:
+ *                 type: string
+ *                 pattern: '^[a-f0-9]{64}$'
+ *     responses:
+ *       200:
+ *         description: Session issued; access token is in tokens.access_token.
+ *       401:
+ *         description: Invalid, expired, replayed, or browser-mismatched code.
+ *       429:
+ *         description: Authentication rate limit exceeded.
+ */

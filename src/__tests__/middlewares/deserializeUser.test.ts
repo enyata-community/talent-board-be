@@ -101,6 +101,10 @@ describe("deserializeUser middleware", () => {
         .mockResolvedValue({ token: "valid-refresh", is_valid: true }),
       save: jest.fn(),
     };
+    Object.assign(entityManagerMock, {
+      transaction: jest.fn((cb) => cb(entityManagerMock)),
+      create: jest.fn((_entity, data) => data),
+    });
     (AppDataSource.manager as any) = entityManagerMock;
 
     (signToken as jest.Mock).mockImplementation((id, key) =>
@@ -119,8 +123,39 @@ describe("deserializeUser middleware", () => {
       "x-access-token",
       "new-access-token",
     );
+    expect(mockRes.cookie).toHaveBeenCalledWith(
+      "refresh_token",
+      "new-refresh-token",
+      expect.objectContaining({ httpOnly: true }),
+    );
+    expect(entityManagerMock.save).toHaveBeenCalledWith(
+      expect.objectContaining({ token: "valid-refresh", is_valid: false }),
+    );
     expect(req.user).toEqual(mockUser);
-    expect(mockNext).toHaveBeenCalled();
+    expect(mockNext).toHaveBeenCalledWith();
+  });
+
+  it("rejects an already-consumed refresh token without issuing another session", async () => {
+    (verifyToken as jest.Mock).mockReturnValue({ id: mockUser.id });
+    (UserEntity.findOne as jest.Mock).mockResolvedValue(mockUser);
+    const tx: any = {
+      findOne: jest
+        .fn()
+        .mockResolvedValueOnce(mockUser)
+        .mockResolvedValueOnce(null),
+      save: jest.fn(),
+    };
+    (AppDataSource.manager as any) = { transaction: (cb: any) => cb(tx) };
+    await deserializeUser(
+      { headers: {}, cookies: { refresh_token: "consumed" } } as any,
+      mockRes,
+      mockNext,
+    );
+    expect(mockNext).toHaveBeenCalledWith(
+      expect.objectContaining({ statusCode: 401 }),
+    );
+    expect(signToken).not.toHaveBeenCalled();
+    expect(tx.save).not.toHaveBeenCalled();
   });
 
   it("should throw if no tokens are provided", async () => {

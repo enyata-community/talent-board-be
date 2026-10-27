@@ -1,3 +1,4 @@
+import { RefreshToken } from "@src/entities/refreshToken.entity";
 import { EmailOtpEntity } from "@src/entities/emailOtp.entity";
 import { PasswordResetTokenEntity } from "@src/entities/passwordResetToken.entity";
 import {
@@ -115,7 +116,8 @@ export class LocalAuthService {
   ): Promise<UserEntity | null> {
     return await entityManager.transaction(async (tx) => {
       const record = await tx.findOne(EmailOtpEntity, {
-        where: { email, otp },
+        where: { email },
+        lock: { mode: "pessimistic_write" },
         order: { created_at: "DESC" },
       });
 
@@ -123,6 +125,14 @@ export class LocalAuthService {
       if (!record) return null;
       if (record.used_at) return null;
       if (record.expires_at < new Date()) return null;
+
+      if ((record.failed_attempts ?? 0) >= 5) return null;
+      if (record.otp !== otp) {
+        record.failed_attempts = (record.failed_attempts ?? 0) + 1;
+        if (record.failed_attempts >= 5) record.used_at = new Date();
+        await tx.save(record);
+        return null;
+      }
 
       const user = await tx.findOne(UserEntity, { where: { email } });
 
@@ -309,6 +319,7 @@ export class LocalAuthService {
     await entityManager.transaction(async (tx) => {
       const record = await tx.findOne(PasswordResetTokenEntity, {
         where: { email, used_at: IsNull() },
+        lock: { mode: "pessimistic_write" },
         order: { created_at: "DESC" },
       });
 
@@ -339,7 +350,6 @@ export class LocalAuthService {
           dbHashLength: record.token.length,
           receivedTokenLength: sanitizedToken.length,
           dbHashedTokenPrefix: record.token.substring(0, 15) + "...",
-          receivedRawTokenPrefix: sanitizedToken.substring(0, 15) + "...",
         },
         "Attempting password reset token verification",
       );
@@ -364,6 +374,11 @@ export class LocalAuthService {
         { password: hashedPassword },
       );
 
+      await tx.update(
+        RefreshToken,
+        { user: { id: user.id }, is_valid: true },
+        { is_valid: false },
+      );
       record.used_at = new Date();
       await tx.save(record);
     });

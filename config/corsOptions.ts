@@ -4,6 +4,7 @@ import { CorsOptions } from "cors";
 const adminOrigin = new URL(config.get<string>("ADMIN_FRONTEND_URL")).origin;
 
 const devOrigins = [
+  new URL(config.get<string>("FRONTEND_URL")).origin,
   adminOrigin,
   "http://localhost:3000",
   "http://localhost:8000",
@@ -32,6 +33,7 @@ const corsOptions: CorsOptions = {
     }
   },
   credentials: true,
+  exposedHeaders: ["x-access-token", "Retry-After"],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
   allowedHeaders: [
     "Origin",

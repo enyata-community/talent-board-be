@@ -54,18 +54,21 @@ export const applyTalentFilters = (
 ) => {
   const levelField = `${alias}.experience_level`;
 
+  // Apply filters for talent search queries,
+  // ensuring partial match capabilities with ranking optimization.
+
   if (query.q) {
     qb.andWhere(
-      `similarity(user.first_name || ' ' || user.last_name, :q) > 0.3
+      `(similarity(user.first_name || ' ' || user.last_name, :q) > 0.3
        OR user.first_name ILIKE '%' || :q || '%'
-       OR user.last_name ILIKE '%' || :q || '%'`,
+       OR user.last_name ILIKE '%' || :q || '%')`,
       { q: query.q },
     );
   }
 
-/**
- * Apply filters for talent search queries, ensuring partial match capabilities with ranking optimization.
- */
+  /**
+   * Apply filters for talent search queries, ensuring partial match capabilities with ranking optimization.
+   */
 
   if (query.jobtitle) {
     qb.andWhere(`${alias}.job_title ILIKE :jobtitle`, {
