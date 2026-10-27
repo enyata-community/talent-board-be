@@ -1,6 +1,8 @@
+. "$(dirname "$0")/yarn.sh"
+
 echo "🔍 Running Commitlint..."
 
-yarn commitlint --edit "$1"
+run_yarn commitlint --edit "$1"
 status=$?
 
 if [ $status -ne 0 ]; then
