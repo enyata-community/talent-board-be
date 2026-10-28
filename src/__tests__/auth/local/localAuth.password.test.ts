@@ -1,13 +1,13 @@
 import * as argon2 from "argon2";
 import config from "config";
-import { LocalAuthService } from "../auth/local/local.service";
-import { PasswordResetTokenEntity } from "../entities/passwordResetToken.entity";
-import { UserEntity, UserProvider } from "../entities/user.entity";
-import { ClientError } from "../exceptions/clientError";
-import { NotFoundError } from "../exceptions/notFoundError";
-import { EmailService } from "../utils/email";
+import { LocalAuthService } from "@src/auth/local/local.service";
+import { PasswordResetTokenEntity } from "@src/entities/passwordResetToken.entity";
+import { UserEntity, UserProvider } from "@src/entities/user.entity";
+import { ClientError } from "@src/exceptions/clientError";
+import { NotFoundError } from "@src/exceptions/notFoundError";
+import { EmailService } from "@src/utils/email";
 
-jest.mock("../utils/email");
+jest.mock("@src/utils/email");
 jest.mock("argon2");
 jest.mock("config");
 

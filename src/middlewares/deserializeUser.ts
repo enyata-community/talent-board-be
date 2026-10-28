@@ -34,6 +34,8 @@ const checkUserExists = async (userId: string) => {
 const refreshAccessToken = async (
   refreshToken: string,
   entityManager: EntityManager,
+  req: Request,
+  res: Response,
 ): Promise<string | false> => {
   const decoded = verifyToken(refreshToken, "REFRESH_TOKEN_PUBLIC_KEY");
   if (!decoded) return false;
@@ -41,17 +43,41 @@ const refreshAccessToken = async (
   const user = await checkUserExists(decoded.id);
   if (!user) return false;
 
-  const storedToken = await entityManager.findOne(RefreshToken, {
-    where: { token: refreshToken, is_valid: true, user: { id: user.id } },
+  return entityManager.transaction(async (tx) => {
+    // Serialize session issuance with password changes which update this row.
+    await tx.findOne(UserEntity, {
+      where: { id: user.id },
+      lock: { mode: "pessimistic_write" },
+    });
+    const storedToken = await tx.findOne(RefreshToken, {
+      where: { token: refreshToken, is_valid: true, user: { id: user.id } },
+      lock: { mode: "pessimistic_write" },
+    });
+    if (!storedToken) return false;
+    storedToken.is_valid = false;
+    await tx.save(storedToken);
+    const replacement = signToken(user.id, "REFRESH_TOKEN_PRIVATE_KEY", {
+      expiresIn: config.get<string>("REFRESH_TOKEN_TTL"),
+    });
+    await tx.save(
+      tx.create(RefreshToken, {
+        token: replacement,
+        user,
+        is_valid: true,
+        ip_address: storedToken.ip_address,
+        user_agent: storedToken.user_agent,
+      }),
+    );
+    res.cookie("refresh_token", replacement, {
+      httpOnly: true,
+      secure: req.secure || req.headers["x-forwarded-proto"] === "https",
+      sameSite: "lax",
+      path: "/",
+    });
+    return signToken(user.id, "ACCESS_TOKEN_PRIVATE_KEY", {
+      expiresIn: config.get<string>("ACCESS_TOKEN_TTL"),
+    });
   });
-
-  if (!storedToken) return false;
-
-  const access_token = signToken(user.id, "ACCESS_TOKEN_PRIVATE_KEY", {
-    expiresIn: config.get<number>("ACCESS_TOKEN_TTL"),
-  });
-
-  return access_token;
 };
 
 export const deserializeUser = asyncHandler(
@@ -79,6 +105,8 @@ export const deserializeUser = asyncHandler(
       const newAccessToken = await refreshAccessToken(
         refreshToken,
         entityManager,
+        req,
+        res,
       );
 
       if (!newAccessToken) {

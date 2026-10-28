@@ -15,6 +15,7 @@ const client = jwksClient({
 
 const getSigningKey = (header: JwtHeader, callback: SigningKeyCallback) => {
   client.getSigningKey(header.kid as string, (_err, key) => {
+    if (_err || !key) return callback(_err || new Error("Missing signing key"));
     const signingKey = key.getPublicKey();
     callback(null, signingKey);
   });
@@ -66,9 +67,17 @@ passport.use(
       verify(
         idToken,
         getSigningKey,
-        { algorithms: ["RS256"] },
+        {
+          algorithms: ["RS256"],
+          issuer: "https://www.linkedin.com/oauth",
+          audience: clientId,
+        },
         (err, decoded) => {
           if (err) {
+            log.warn(
+              { verificationError: err.name, reason: err.message },
+              "LinkedIn ID token verification failed",
+            );
             return done(new UnauthorizedError("Invalid ID token"), null);
           }
 

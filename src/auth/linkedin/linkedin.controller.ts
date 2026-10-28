@@ -1,30 +1,30 @@
+import { createOAuthState } from "../oauthState";
 import { LINKEDIN_SCOPES } from "@src/auth/auth.constants";
 import AppDataSource from "@src/datasource";
 import { UnauthorizedError } from "@src/exceptions/unauthorizedError";
 import asyncHandler from "@src/middlewares/asyncHandler";
-import { createSendToken } from "@src/utils/createSendToken";
+import { createOAuthExchangeCode } from "../oauthExchange";
 import config from "config";
 import type { NextFunction, Request, Response } from "express";
 import { LinkedInAuthService } from "./linkedin.service";
 
 const linkedInAuthService = new LinkedInAuthService();
 
-export const linkedInOAuth = (req: Request, res: Response) => {
-  const clientId = config.get<string>("LINKEDIN_CLIENT_ID");
-  const redirectUri = `${config.get<string>("BASE_URL")}/${config.get<string>("API_PREFIX")}/auth/linkedin/callback`;
-  const scope = LINKEDIN_SCOPES;
+export const linkedInOAuth = asyncHandler(
+  async (req: Request, res: Response) => {
+    const clientId = config.get<string>("LINKEDIN_CLIENT_ID");
+    const redirectUri = `${config.get<string>("BASE_URL")}/${config.get<string>("API_PREFIX")}/auth/linkedin/callback`;
+    const scope = LINKEDIN_SCOPES;
 
-  const redirectParams = new URLSearchParams({
-    redirect_uri: req.query.redirect_uri as string,
-    include_tokens_in_url: req.query.include_tokens_in_url as string,
-  }).toString();
+    const redirectParams = await createOAuthState(req, res, "linkedin");
 
-  const authUrl = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope.join(" "))}&state=${encodeURIComponent(
-    redirectParams,
-  )}`;
+    const authUrl = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope.join(" "))}&state=${encodeURIComponent(
+      redirectParams,
+    )}`;
 
-  res.redirect(authUrl);
-};
+    res.redirect(authUrl);
+  },
+);
 
 export const linkedInOAuthCallback = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -46,33 +46,13 @@ export const linkedInOAuthCallback = asyncHandler(
       entityManager,
     );
 
-    const rawState = req.query.state as string;
-    const decodedState = decodeURIComponent(rawState);
-    const stateParams = new URLSearchParams(decodedState);
+    const redirectUri = res.locals.oauthRedirect;
 
-    const redirectUri =
-      stateParams.get("redirect_uri") ||
-      config.get<string>("FRONTEND_URL") ||
-      "http://localhost:3000";
-
-    const includeTokensInUrl =
-      stateParams.get("include_tokens_in_url") === "true";
-
-    await createSendToken(
-      user,
-      200,
-      "LinkedIn OAuth successful",
-      req,
-      res,
-      entityManager,
-      { mode: "redirect" },
-    );
-
-    const queryParams = new URLSearchParams({
-      access_token: res.locals.access_token,
-      ...(includeTokensInUrl && { refresh_token: res.locals.refresh_token }),
-    }).toString();
-
-    res.redirect(`${redirectUri}?${queryParams}`);
+    const code = await createOAuthExchangeCode(user.id, req, res);
+    const destination = new URL(redirectUri);
+    destination.searchParams.set("code", code);
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Referrer-Policy", "no-referrer");
+    res.redirect(destination.href);
   },
 );

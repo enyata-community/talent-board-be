@@ -1,3 +1,6 @@
+import { exchangeOAuthCode } from "./oauthExchange";
+import { validateOAuthState } from "./oauthState";
+import { authRateLimit } from "./authRateLimit";
 import { validateData } from "@src/middlewares/validateData";
 import express from "express";
 import passport from "passport";
@@ -23,10 +26,12 @@ import { signupSchema } from "./local/schemas/signup.schema";
 import { verifyEmailSchema } from "./local/schemas/verifyEmail.schema";
 
 const router = express.Router();
+router.use(authRateLimit);
 
 router.get("/google", googleOAuth);
 router.get(
   "/google/callback",
+  validateOAuthState("google"),
   passport.authenticate("google", { session: false }),
   googleOAuthCallback,
 );
@@ -34,9 +39,12 @@ router.get(
 router.get("/linkedin", linkedInOAuth);
 router.get(
   "/linkedin/callback",
+  validateOAuthState("linkedin"),
   passport.authenticate("linkedin", { session: false }),
   linkedInOAuthCallback,
 );
+
+router.post("/oauth/exchange", exchangeOAuthCode);
 
 router.post("/logout", logoutUser);
 

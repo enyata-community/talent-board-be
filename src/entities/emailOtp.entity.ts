@@ -9,6 +9,9 @@ export class EmailOtpEntity extends ExtendedBaseEntity {
   @JoinColumn({ name: "user_id" })
   user: UserEntity;
 
+  @Column({ type: "integer", default: 0 })
+  failed_attempts: number;
+
   @IsEmail()
   @IsString()
   @Column()
