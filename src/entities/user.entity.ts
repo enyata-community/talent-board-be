@@ -32,10 +32,21 @@ export enum UserRole {
   SUPER_ADMIN = "super_admin",
 }
 
+export enum UserStatus {
+  ACTIVE = "active",
+  SUSPENDED = "suspended",
+}
+
 export const isInternalRole = (role: UserRole | null | undefined) =>
   role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN;
 
 @Entity({ name: "users" })
+// Direction and NULL ordering are defined explicitly by the migration.
+@Index("IDX_users_activity_desc", { synchronize: false })
+@Index("IDX_users_activity_asc", { synchronize: false })
+@Index("IDX_users_management", ["role", "status", "created_at", "id"], {
+  where: '"deleted_at" IS NULL',
+})
 @Index("uq_single_super_admin", ["role"], {
   unique: true,
   where: "role = 'super_admin'",
@@ -76,6 +87,13 @@ export class UserEntity extends ExtendedBaseEntity {
   @IsOptional()
   @IsEnum(UserRole)
   role: UserRole;
+
+  @Column({ type: "enum", enum: UserStatus, default: UserStatus.ACTIVE })
+  @IsEnum(UserStatus)
+  status: UserStatus = UserStatus.ACTIVE;
+
+  @Column({ type: "timestamptz", nullable: true })
+  last_activity_at: Date | null;
 
   @Column({ default: false })
   @Expose()

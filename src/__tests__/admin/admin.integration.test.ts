@@ -1,7 +1,12 @@
 import { LocalAuthService } from "../../auth/local/local.service";
 import { GoogleAuthService } from "../../auth/google/google.service";
 import { LinkedInAuthService } from "../../auth/linkedin/linkedin.service";
-import { UserEntity, UserRole, UserProvider } from "../../entities/user.entity";
+import {
+  UserEntity,
+  UserRole,
+  UserProvider,
+  UserStatus,
+} from "../../entities/user.entity";
 import express from "express";
 import cookieParser from "cookie-parser";
 import { AddressInfo } from "net";
@@ -582,6 +587,32 @@ describe("Admin Portal PostgreSQL integration", () => {
         provider: UserProvider.LOCAL,
       }),
     ).rejects.toMatchObject({ code: "23505" });
+  });
+  it("creates invitations with entity validation enabled outside test mode", async () => {
+    const root = await ds.getRepository(AdminAccount).findOneByOrFail({
+      user: { role: UserRole.SUPER_ADMIN },
+    });
+    const previous = process.env.NODE_ENV;
+    try {
+      process.env.NODE_ENV = "development";
+      await invitations.invite(
+        "validated@example.com",
+        undefined,
+        { actor: root },
+        {
+          first_name: "Barry",
+          last_name: "Jay",
+        },
+      );
+    } finally {
+      if (previous === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = previous;
+    }
+    const identity = await ds
+      .getRepository(UserEntity)
+      .findOneByOrFail({ email: "validated@example.com" });
+    expect(identity.status).toBe(UserStatus.ACTIVE);
+    expect(identity.role).toBe(UserRole.ADMIN);
   });
   it("keeps audit history append-only and rolls back mutations if audit writes fail", async () => {
     const logs = await ds.getRepository(AdminAuditLog).find();

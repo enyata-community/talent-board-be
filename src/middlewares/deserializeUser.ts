@@ -6,6 +6,7 @@ import { RefreshToken } from "../entities/refreshToken.entity";
 import { UserEntity, isInternalRole } from "../entities/user.entity";
 import { UnauthorizedError } from "../exceptions/unauthorizedError";
 import { signToken, verifyToken } from "../utils/jwt";
+import { recordUserActivity } from "../users/userActivity";
 import asyncHandler from "./asyncHandler";
 
 const extractTokens = (req: Request) => {
@@ -91,6 +92,7 @@ export const deserializeUser = asyncHandler(
 
     if (decoded) {
       const currentUser = await checkUserExists(decoded.id);
+      await recordUserActivity(currentUser, entityManager);
       req.user = currentUser;
       return next();
     }
@@ -118,7 +120,9 @@ export const deserializeUser = asyncHandler(
       res.setHeader("x-access-token", newAccessToken);
 
       const newDecoded = verifyToken(newAccessToken, "ACCESS_TOKEN_PUBLIC_KEY");
-      req.user = await checkUserExists(newDecoded!.id);
+      const currentUser = await checkUserExists(newDecoded!.id);
+      await recordUserActivity(currentUser, entityManager);
+      req.user = currentUser;
     }
     return next();
   },
