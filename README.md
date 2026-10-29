@@ -207,7 +207,7 @@ Swagger Docs available at:
 | `yarn dev`        | Start in development mode (hot reload) |
 | `yarn build`      | Build TypeScript code for production   |
 | `yarn start`      | Run built code                         |
-| `yarn test`       | Run all Jest tests                     |
+| `yarn test`       | Run unit tests without a database      |
 | `yarn test:watch` | Watch mode for tests                   |
 | `yarn lint`       | Lint project with ESLint               |
 | `yarn format`     | Auto-format code with Prettier         |
@@ -261,3 +261,12 @@ See [Admin Portal setup and API contract](docs/admin-portal.md) for configuratio
 Database schemas in development and production are migration-managed; application
 startup does not create tables. For an approved destructive local rebuild, see
 [the local database rebuild procedure](docs/local-database-rebuild.md).
+
+### Database and CI checks
+
+All schemas, including test schemas, are managed by migrations. Run
+`yarn migration:run` before starting against a new database. Use `yarn typecheck`,
+`yarn lint`, and `yarn test:unit` for local checks. Database tests run with
+`TEST_DATABASE_URL=<dedicated-test-server-url> yarn test:integration`; the test
+role must be able to create and drop isolated databases. See
+[database and CI notes](docs/pr3-database-ci.md) for setup and upgrade checks.

@@ -6,7 +6,7 @@ import { NextFunction, Request, Response } from "express";
 export const logoutUser = asyncHandler(
   async (req: Request, res: Response, _next: NextFunction) => {
     const entityManager = AppDataSource.manager;
-    const refreshToken = req.cookies["refreshToken"];
+    const refreshToken = req.cookies["refresh_token"];
 
     if (refreshToken) {
       await entityManager.update(

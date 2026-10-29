@@ -14,9 +14,11 @@ export default {
   DB_PORT: isDocker ? 5432 : 5453,
   DB_PASSWORD: "test_password",
   DB_NAME: "test_db",
-  DATABASE_URL: isDocker
-    ? "postgres://test_user:test_password@postgres_test:5432/test_db"
-    : "postgres://test_user:test_password@localhost:5453/test_db",
+  // Integration harness overrides DATABASE_URL with its per-suite database.
+  // Unit tests must not accidentally connect to a developer's database.
+  DATABASE_URL:
+    process.env.TEST_DATABASE_URL ||
+    "postgres://unused:unused@127.0.0.1:1/unit_test",
 
   ACCESS_TOKEN_TTL: "1m",
   REFRESH_TOKEN_TTL: "7d",

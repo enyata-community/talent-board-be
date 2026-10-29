@@ -12,6 +12,8 @@ interface CookieOptions {
   maxAge?: number;
   httpOnly?: boolean;
   secure?: boolean;
+  sameSite?: "lax";
+  path?: string;
 }
 
 export const createSendToken = async (
@@ -109,6 +111,8 @@ export const createSendToken = async (
   const cookieOptions: CookieOptions = {
     expires: validExpirationDate,
     httpOnly: true,
+    sameSite: "lax",
+    path: "/",
     secure: req.secure || req.headers["x-forwarded-proto"] === "https",
   };
 
@@ -117,42 +121,20 @@ export const createSendToken = async (
     cookieOptions.maxAge = 7 * 24 * 60 * 60 * 1000;
   }
 
-  console.log("Final cookie options before setting:", {
-    expires: cookieOptions.expires,
-    expiresType: cookieOptions.expires
-      ? typeof cookieOptions.expires
-      : "undefined",
-    expiresValid: cookieOptions.expires
-      ? !isNaN(cookieOptions.expires.getTime())
-      : "no expires",
-    maxAge: cookieOptions.maxAge,
-    maxAgeType: cookieOptions.maxAge
-      ? typeof cookieOptions.maxAge
-      : "undefined",
-  });
-
   if (options.mode === "redirect") {
     res.locals.access_token = accessToken;
     res.locals.refresh_token = refreshToken;
 
-    try {
-      res.cookie("refresh_token", refreshToken, cookieOptions);
-    } catch (error) {
-      throw error;
-    }
+    res.cookie("refresh_token", refreshToken, cookieOptions);
     return;
   }
 
-  try {
-    res.cookie("refresh_token", refreshToken, cookieOptions);
-  } catch (error) {
-    throw error;
-  }
+  res.cookie("refresh_token", refreshToken, cookieOptions);
 
   res.status(statusCode).json({
     status: "success",
     message,
     data: { user: sanitizeUser(user) },
-    tokens: { access_token: accessToken, refresh_token: refreshToken },
+    tokens: { access_token: accessToken },
   });
 };

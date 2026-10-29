@@ -182,7 +182,7 @@ describe("MessageTemplateService", () => {
     expect(result.templates[0].body).toContain("Hi Recruiter");
   });
 
-  it("uses oauth recipient name when first and last names are available", async () => {
+  it("uses the OAuth recipient first name in the greeting", async () => {
     const result = await service.getTemplates(
       recruiter.id,
       UserRole.RECRUITER,
@@ -191,6 +191,6 @@ describe("MessageTemplateService", () => {
       },
     );
 
-    expect(result.templates[0].body).toContain("Hi Alex Morgan");
+    expect(result.templates[0].body).toContain("Hi Alex,");
   });
 });

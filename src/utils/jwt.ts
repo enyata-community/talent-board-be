@@ -1,5 +1,6 @@
 import { CustomJwtPayload } from "@src/interfaces";
 import config from "config";
+import { randomUUID } from "crypto";
 import { sign, verify } from "jsonwebtoken";
 
 export const signToken = (
@@ -15,6 +16,7 @@ export const signToken = (
   return sign({ id }, signingKey, {
     ...(options && options),
     algorithm: "RS256",
+    jwtid: randomUUID(),
   });
 };
 
@@ -26,8 +28,11 @@ export const verifyToken = (
     "ascii",
   );
 
+  // Verify the token using the public key and return the decoded payload if valid
   try {
-    return verify(token, publicKey) as CustomJwtPayload;
+    return verify(token, publicKey, {
+      algorithms: ["RS256"],
+    }) as CustomJwtPayload;
   } catch (error) {
     return null;
   }

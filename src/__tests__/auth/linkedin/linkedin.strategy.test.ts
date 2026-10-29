@@ -46,12 +46,67 @@ describe("LinkedIn Strategy", () => {
     const req = { query: { code: "valid-code" } };
     await (strategy as any)._verify(req, mockDone);
 
+    expect(verify).toHaveBeenCalledWith(
+      "valid-token",
+      expect.any(Function),
+      expect.objectContaining({
+        algorithms: ["RS256"],
+        issuer: "https://www.linkedin.com/oauth",
+        audience: expect.any(String),
+      }),
+      expect.any(Function),
+    );
     expect(mockDone).toHaveBeenCalledWith(null, {
       first_name: "Jane",
       last_name: "Doe",
       email: "jane.doe@example.com",
       avatar: "https://avatar.com/jane.png",
     });
+  });
+
+  it("validates signed tokens against the discovery issuer and configured audience", async () => {
+    const jwt = jest.requireActual("jsonwebtoken");
+    const { generateKeyPairSync } = jest.requireActual("crypto");
+    const { privateKey, publicKey } = generateKeyPairSync("rsa", {
+      modulusLength: 2048,
+    });
+    let options: any;
+    (axios.post as jest.Mock).mockResolvedValue({
+      data: { id_token: "capture-options" },
+    });
+    (verify as jest.Mock).mockImplementation((_token, _key, opts, cb) => {
+      options = opts;
+      cb(new Error("capture options"));
+    });
+    await strategy._verify({ query: { code: "code" } }, mockDone);
+    const token = (issuer: string, audience: string) =>
+      jwt.sign({}, privateKey, {
+        algorithm: "RS256",
+        issuer,
+        audience,
+        expiresIn: "1m",
+      });
+    expect(() =>
+      jwt.verify(
+        token("https://www.linkedin.com/oauth", options.audience),
+        publicKey,
+        options,
+      ),
+    ).not.toThrow();
+    expect(() =>
+      jwt.verify(
+        token("https://www.linkedin.com", options.audience),
+        publicKey,
+        options,
+      ),
+    ).toThrow(/issuer/);
+    expect(() =>
+      jwt.verify(
+        token("https://www.linkedin.com/oauth", "different-app"),
+        publicKey,
+        options,
+      ),
+    ).toThrow(/audience/);
   });
 
   it("should fail if no code is present", async () => {

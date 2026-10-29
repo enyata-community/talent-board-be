@@ -55,11 +55,14 @@ export const applyTalentFilters = (
 ) => {
   const levelField = `${alias}.experience_level`;
 
+  // Apply filters for talent search queries,
+  // ensuring partial match capabilities with ranking optimization.
+
   if (query.q) {
     qb.andWhere(
-      `similarity(user.first_name || ' ' || user.last_name, :q) > 0.3
+      `(similarity(user.first_name || ' ' || user.last_name, :q) > 0.3
        OR user.first_name ILIKE '%' || :q || '%'
-       OR user.last_name ILIKE '%' || :q || '%'`,
+       OR user.last_name ILIKE '%' || :q || '%')`,
       { q: query.q },
     );
   }
@@ -186,8 +189,8 @@ export const formatTalentResult = (
   },
 ): Partial<TalentSearchResult> => {
   let user: UserEntity;
-  let profile: TalentProfileEntity | null = null;
-  let metrics: MetricsEntity = null;
+  let profile: TalentProfileEntity | null;
+  let metrics: MetricsEntity;
   let resume_path: string;
   let recruiter_saves: number = 0;
 

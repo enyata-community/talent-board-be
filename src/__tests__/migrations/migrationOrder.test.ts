@@ -34,9 +34,6 @@ describe("Migration ordering and dependency integrity", () => {
     expect(migrations[1].name).toBe(
       "CreatePasswordResetTokensTable1745418605538",
     );
-    expect(migrations[migrations.length - 1].name).toBe(
-      "UnifyAdminUserIdentities1793000002000",
-    );
   });
   it.each([
     ["InitialMigration", "Onboarding"],
@@ -50,6 +47,8 @@ describe("Migration ordering and dependency integrity", () => {
     ["AddAuthColumnsToUsers", "AddIncompleteSignupReminderFields"],
     ["CreateAdminPortal", "EnforceSingleSuperAdmin"],
     ["EnforceSingleSuperAdmin", "UnifyAdminUserIdentities"],
+    ["UnifyAdminUserIdentities", "AddOtpAttempts"],
+    ["AddOtpAttempts", "CreateAuthSecurityState"],
   ])("runs %s before %s", (prerequisite, dependent) => {
     const before = migrations.findIndex((migration) =>
       migration.name.startsWith(prerequisite),

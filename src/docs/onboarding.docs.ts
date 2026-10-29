@@ -111,8 +111,6 @@ export const talentOnboarding = `
  *                       properties:
  *                         access_token:
  *                           $ref: '#/components/schemas/AccessToken'
- *                         refresh_token:
- *                           $ref: '#/components/schemas/RefreshToken'
  *       401:
  *         description: Unauthorized
  *         content:
@@ -260,8 +258,6 @@ export const recruiterOnboarding = `
  *                       properties:
  *                         access_token:
  *                           $ref: '#/components/schemas/AccessToken'
- *                         refresh_token:
- *                           $ref: '#/components/schemas/RefreshToken'
  *       401:
  *         description: Unauthorized - No or invalid token provided
  *         content:

@@ -1,79 +1,62 @@
-name: CI - Run Tests and Coverage
+name: CI - Typecheck, Lint and Tests
 
 on:
   push:
-    branches:
-      - main
-      - dev
+    branches: [main, develop]
   pull_request:
-    branches:
-      - main
-      - dev
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+env:
+  NODE_ENV: test
+  TALENTS_NODE_ENV: test
 
 jobs:
-  test:
+  unit:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+      - name: Enable Yarn
+        run: corepack enable
+      - run: yarn install --frozen-lockfile
+      - name: Typecheck
+        run: yarn typecheck
+      - name: Lint
+        run: yarn lint
+      - name: Unit tests and coverage
+        run: yarn test:unit --coverage
 
+  integration:
+    runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:15
+        image: postgres:17
         env:
           POSTGRES_USER: test_user
           POSTGRES_PASSWORD: test_password
           POSTGRES_DB: test_db
-        ports:
-          - 5432:5432
+        ports: ["5432:5432"]
         options: >-
-          --health-cmd="pg_isready -U test_user"
-          --health-interval=10s
+          --health-cmd="pg_isready -U test_user -d test_db"
+          --health-interval=5s
           --health-timeout=5s
-          --health-retries=5
-
-      redis:
-        image: redis:latest
-        ports:
-          - 6379/tcp
-        options: >-
-          --health-cmd "redis-cli ping || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
+          --health-retries=10
+    env:
+      TEST_DATABASE_URL: postgres://test_user:test_password@127.0.0.1:5432/test_db
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Set Up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: "yarn"
-
-      - name: Install Dependencies
-        run: yarn install --frozen-lockfile
-
-      - name: Setup Environment Variables
-        run: |
-          echo "NODE_ENV=test" >> $GITHUB_ENV
-          echo "PORT=5001" >> $GITHUB_ENV
-          echo "DB_USER=test_user" >> $GITHUB_ENV
-          echo "DB_PASSWORD=test_password" >> $GITHUB_ENV
-          echo "DB_HOST=localhost" >> $GITHUB_ENV
-          echo "DB_PORT=5432" >> $GITHUB_ENV
-          echo "DB_NAME=test_db" >> $GITHUB_ENV
-          echo "DATABASE_URL=postgres://test_user:test_password@localhost:5432/test_db" >> $GITHUB_ENV
-          echo "REDIS_HOST=localhost" >> $GITHUB_ENV
-          echo "REDIS_PORT=6379" >> $GITHUB_ENV
-          echo "REDIS_URL=redis://localhost:6379" >> $GITHUB_ENV
-
-      - name: Wait for Services to Be Ready
-        run: sleep 10
-
-      - name: Run Database Migrations
-        run: yarn migration:run
-
-      - name: Seed Test Database
-        run: yarn ts-node src/seeders/testSeeder.ts
-
-      - name: Run Tests with Coverage
-        run: yarn test --coverage
+          cache: yarn
+      - name: Enable Yarn
+        run: corepack enable
+      - run: yarn install --frozen-lockfile
+      - name: Migration and service integration tests
+        run: yarn test:integration

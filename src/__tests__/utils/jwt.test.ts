@@ -24,7 +24,7 @@ describe("JWT Utility Functions", () => {
       expect(jwt.sign).toHaveBeenCalledWith(
         { id: mockId },
         expect.any(String),
-        { algorithm: "RS256" },
+        { algorithm: "RS256", jwtid: expect.any(String) },
       );
       expect(token).toBe("mocked-jwt-token");
     });
@@ -48,6 +48,7 @@ describe("JWT Utility Functions", () => {
       expect(jwt.verify).toHaveBeenCalledWith(
         "valid-jwt-token",
         expect.any(String),
+        { algorithms: ["RS256"] },
       );
       expect(result).toEqual(mockPayload);
     });

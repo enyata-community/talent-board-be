@@ -1,90 +1,37 @@
-import { Request, Response } from "express";
-import {
-  linkedInOAuth,
-  linkedInOAuthCallback,
-} from "../../../auth/linkedin/linkedin.controller";
-import { LinkedInAuthService } from "../../../auth/linkedin/linkedin.service";
-import AppDataSource from "../../../datasource";
-import * as createTokenUtil from "../../../utils/createSendToken";
-
+import { linkedInOAuthCallback } from "@src/auth/linkedin/linkedin.controller";
+import { LinkedInAuthService } from "@src/auth/linkedin/linkedin.service";
+import { createOAuthExchangeCode } from "@src/auth/oauthExchange";
 jest.mock("@src/auth/linkedin/linkedin.service");
-jest.mock("@src/utils/createSendToken");
+jest.mock("@src/auth/oauthExchange");
 
-const mockUser = { id: "user-789", email: "linked.in@example.com" };
-const mockReq = {
-  user: {
-    first_name: "Link",
-    last_name: "Edin",
-    email: "linked.in@example.com",
-    avatar: "https://avatar.com/link.png",
-  },
-  query: {
-    state: "http://localhost:3000",
-  },
-} as unknown as Request;
+test("linkedin redirects with an exchange code and preserves existing query parameters", async () => {
+  (
+    LinkedInAuthService.prototype.authenticateOrCreateUser as jest.Mock
+  ).mockResolvedValue({ id: "user" });
+  (createOAuthExchangeCode as jest.Mock).mockResolvedValue("single-use-code");
+  const res: any = {
+    locals: { oauthRedirect: "https://frontend.example/callback?next=home" },
+    redirect: jest.fn(),
+    setHeader: jest.fn(),
+  };
+  const next = jest.fn();
+  await linkedInOAuthCallback(
+    { user: { email: "a@example.com" } } as any,
+    res,
+    next,
+  );
+  expect(next).not.toHaveBeenCalled();
+  const destination = new URL(res.redirect.mock.calls[0][0]);
+  expect(destination.searchParams.get("code")).toBe("single-use-code");
+  expect(destination.searchParams.get("next")).toBe("home");
+  expect(destination.searchParams.has("access_token")).toBe(false);
+  expect(destination.searchParams.has("refresh_token")).toBe(false);
+});
 
-const mockRes = {
-  redirect: jest.fn(),
-  status: jest.fn().mockReturnThis(),
-  json: jest.fn().mockReturnThis(),
-  cookie: jest.fn().mockReturnThis(),
-  locals: {},
-} as unknown as Response;
-
-const mockNext = jest.fn();
-(AppDataSource.manager as any) = { transaction: jest.fn((fn) => fn({})) };
-
-describe("LinkedIn OAuth Controller", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    (
-      LinkedInAuthService.prototype.authenticateOrCreateUser as jest.Mock
-    ).mockResolvedValue(mockUser);
-    (createTokenUtil.createSendToken as jest.Mock).mockImplementation(
-      async (_user, _status, _msg, _req, res, _tx, options) => {
-        res.locals.access_token = "test-access-token";
-        res.locals.refresh_token = "test-refresh-token";
-        options?.mode === "redirect" &&
-          res.redirect(
-            `${_req.query.state}?access_token=${res.locals.access_token}&refresh_token=${res.locals.refresh_token}`,
-          );
-      },
-    );
-  });
-
-  it("should redirect to LinkedIn auth URL", () => {
-    const reqWithState = {
-      query: { state: "http://localhost:3000" },
-    } as unknown as Request;
-    linkedInOAuth(reqWithState, mockRes);
-    expect(mockRes.redirect).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "https://www.linkedin.com/oauth/v2/authorization",
-      ),
-    );
-  });
-
-  it("should respond with success and tokens", async () => {
-    await linkedInOAuthCallback(mockReq, mockRes, mockNext);
-
-    expect(
-      LinkedInAuthService.prototype.authenticateOrCreateUser,
-    ).toHaveBeenCalledWith(mockReq.user, AppDataSource.manager);
-
-    expect(createTokenUtil.createSendToken).toHaveBeenCalledWith(
-      mockUser,
-      200,
-      "LinkedIn OAuth successful",
-      mockReq,
-      mockRes,
-      AppDataSource.manager,
-      { mode: "redirect" },
-    );
-  });
-
-  it("should call next with UnauthorizedError if user is missing", async () => {
-    const badReq = { ...mockReq, user: null } as unknown as Request;
-    await linkedInOAuthCallback(badReq, mockRes, mockNext);
-    expect(mockNext).toHaveBeenCalledWith(expect.any(Error));
-  });
+test("linkedin rejects a missing authenticated profile", async () => {
+  const next = jest.fn();
+  await linkedInOAuthCallback({} as any, {} as any, next);
+  expect(next).toHaveBeenCalledWith(
+    expect.objectContaining({ statusCode: 401 }),
+  );
 });
