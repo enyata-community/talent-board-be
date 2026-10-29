@@ -1,60 +1,37 @@
-import { AppError } from "@src/exceptions/appError";
 import { UploadConfig } from "@src/interfaces";
-import { Request } from "express";
-import fs from "fs";
-import multer, { StorageEngine } from "multer";
-import path from "path";
+import { validateFileContents } from "@src/files/fileValidation";
+import type { Request, Response, NextFunction } from "express";
+import multer from "multer";
 
 export const createFileUploader = ({
-  destinationFolder,
   fieldname,
   allowedMimeTypes,
   maxSizeMB = 2,
 }: UploadConfig) => {
-  if (!fs.existsSync(destinationFolder)) {
-    fs.mkdirSync(destinationFolder, { recursive: true });
-  }
-
-  const storage: StorageEngine = multer.diskStorage({
-    destination: (
-      _req: Request,
-      _file: Express.Multer.File,
-      cb: (error: Error | null, destination: string) => void,
-    ) => {
-      cb(null, destinationFolder);
+  // Keep uploads in bounded memory until body validation and authorization pass.
+  const parse = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+      fileSize: maxSizeMB * 1024 * 1024,
+      files: 1,
+      fields: 30,
+      fieldSize: 10 * 1024,
     },
-    filename: (
-      _req: Request,
-      file: Express.Multer.File,
-      cb: (error: Error | null, filename: string) => void,
-    ) => {
-      const ext = path.extname(file.originalname);
-      const uniqueName = `${Date.now()}-${file.fieldname}${ext}`;
-      cb(null, uniqueName);
-    },
-  });
-
-  const fileFilter = (
-    _req: Request,
-    file: Express.Multer.File,
-    cb: (error: Error | null, isUploaded: boolean) => void,
-  ) => {
-    if (allowedMimeTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(
-        new AppError(
-          `Only ${allowedMimeTypes.join(", ")} files are allowed`,
-          400,
-        ),
-        false,
-      );
-    }
-  };
-
-  return multer({
-    storage,
-    limits: { fileSize: maxSizeMB * 1024 * 1024 },
-    fileFilter,
   }).single(fieldname);
+  return (req: Request, res: Response, next: NextFunction) => {
+    parse(req, res, (error) => {
+      if (error)
+        return res.status(error.code === "LIMIT_FILE_SIZE" ? 413 : 400).json({
+          status: "fail",
+          message: "Invalid upload or upload limit exceeded",
+        });
+      if (!req.file) return next();
+      validateFileContents(req.file.buffer, allowedMimeTypes)
+        .then((detected) => {
+          req.file.mimetype = detected.mime;
+          next();
+        })
+        .catch(next);
+    });
+  };
 };

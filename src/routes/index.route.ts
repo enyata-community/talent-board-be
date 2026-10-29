@@ -1,3 +1,4 @@
+import fileRoutes from "@src/files/files.route";
 import adminRoutes, { superAdminRouter } from "../admin/admin.route";
 import authRoutes from "@src/auth/auth.route";
 import dashboardRoutes from "@src/dashboard/dashboard.route";
@@ -18,6 +19,7 @@ router.use("/skills", skillsRoutes);
 router.use("/users", userRoutes);
 router.use("/dashboard", dashboardRoutes);
 router.use("/talents", talentRoutes);
+router.use("/assets", fileRoutes);
 router.use("/messages", messagingRoutes);
 
 export default router;

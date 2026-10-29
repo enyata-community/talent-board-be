@@ -1,3 +1,5 @@
+import { storeUploadedFile } from "@src/files/storeUploadedFile";
+import { getFileStorage } from "@src/files/storage/fileStorage";
 import AppDataSource from "@src/datasource";
 import { UserRole } from "@src/entities/user.entity";
 import {
@@ -23,9 +25,16 @@ export const createOnboardingHandler = <T extends OnboardingPayload>(
     const entityManager = AppDataSource.manager;
     const userId = req.user.id;
     const payload = formatPayload(req);
+    let storedKey: string | undefined;
+    let persisted = false;
 
     try {
+      if (role === UserRole.TALENT && req.file) {
+        storedKey = await storeUploadedFile(req.file, "resumes");
+        (payload as TalentPayload).resume_path = storedKey;
+      }
       const updatedUser = await service.onboardUser(userId, payload, role);
+      persisted = true;
 
       const firstName = updatedUser.first_name || "there";
       const audience = role === UserRole.RECRUITER ? "recruiter" : "talent";
@@ -55,11 +64,15 @@ export const createOnboardingHandler = <T extends OnboardingPayload>(
         entityManager,
       );
     } catch (error) {
-      if (req.file) {
-        const fs = require("fs");
-        fs.unlink(req.file.path, (err: any) => {
-          if (err) console.error("Failed to delete file:", err);
-        });
+      if (storedKey && !persisted) {
+        await getFileStorage()
+          .remove(storedKey)
+          .catch((cleanupError) =>
+            log.error(
+              { err: cleanupError },
+              "Failed to clean up rejected upload",
+            ),
+          );
       }
       throw error;
     }
@@ -69,7 +82,7 @@ export const onboardTalent = createOnboardingHandler<TalentPayload>(
   UserRole.TALENT,
   (req) => ({
     ...req.body,
-    resume_path: req.file?.path ?? "",
+    resume_path: "",
   }),
 );
 

@@ -11,6 +11,7 @@ jest.mock("@src/datasource", () => ({
     manager: {
       findOne: jest.fn(),
       save: jest.fn(),
+      transaction: jest.fn(),
     },
     resolveAssetUrl: jest.fn((path) => `http://localhost:8000/${path}`),
   },
@@ -26,6 +27,9 @@ describe("UserService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (mockManager.transaction as jest.Mock).mockImplementation((cb) =>
+      cb(mockManager),
+    );
     (AppDataSource.getRepository as jest.Mock).mockImplementation(
       () => mockRepo,
     );
@@ -73,7 +77,6 @@ describe("UserService", () => {
       const payload = {
         first_name: "John",
         last_name: "Smith",
-        avatar: "new-avatar.png",
         bio: "Updated bio",
       };
 
@@ -81,6 +84,7 @@ describe("UserService", () => {
         mockUser.id,
         mockUser.role,
         payload,
+        "avatars/new-avatar.png",
       );
 
       expect(mockManager.findOne).toHaveBeenCalledWith(UserEntity, {
@@ -90,7 +94,7 @@ describe("UserService", () => {
 
       expect(mockUser.first_name).toBe("John");
       expect(mockUser.last_name).toBe("Smith");
-      expect(mockUser.avatar).toBe("new-avatar.png");
+      expect(mockUser.avatar).toBe("avatars/new-avatar.png");
       expect(mockUser.talent_profile.bio).toBe("Updated bio");
 
       expect(mockManager.save).toHaveBeenCalledWith(mockUser);
@@ -100,7 +104,7 @@ describe("UserService", () => {
         id: mockUser.id,
         first_name: "John",
         last_name: "Smith",
-        avatar: resolveAssetUrl("new-avatar.png"),
+        avatar: resolveAssetUrl("avatars/new-avatar.png"),
         bio: "Updated bio",
       });
     });
@@ -112,7 +116,6 @@ describe("UserService", () => {
         service.updateProfile("1", UserRole.TALENT, {
           first_name: "John",
           last_name: "Smith",
-          avatar: "new-avatar.png",
           bio: "Updated bio",
         }),
       ).rejects.toThrow(NotFoundError);

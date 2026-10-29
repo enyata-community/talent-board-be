@@ -1,3 +1,5 @@
+import { downloadResume } from "@src/files/files.controller";
+import { z } from "zod";
 import { UserRole } from "@src/entities/user.entity";
 import { checkRole } from "@src/middlewares/checkRole";
 import { deserializeUser } from "@src/middlewares/deserializeUser";
@@ -19,6 +21,11 @@ router.get("/top", getTopTalents);
 router.get("/", validateData(searchTalentsSchema, ["query"]), searchTalents);
 
 router.use(deserializeUser);
+router.get(
+  "/:id/resume",
+  validateData(z.object({ id: z.string().uuid() }), ["params"]),
+  downloadResume,
+);
 router.use(checkRole(UserRole.RECRUITER));
 
 router.get(

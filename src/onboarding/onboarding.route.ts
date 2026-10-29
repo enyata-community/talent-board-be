@@ -11,11 +11,11 @@ import { talentOnboardingSchema } from "./schemas/talentOnboarding.schema";
 const router = Router();
 
 router.use(deserializeUser);
-router.use(uploadResume);
-router.use(injectResumePath);
 
 router.patch(
   "/talent",
+  uploadResume,
+  injectResumePath,
   parseFormDataFields(["skills"]),
   validateData(talentOnboardingSchema, ["body"]),
   onboardTalent,

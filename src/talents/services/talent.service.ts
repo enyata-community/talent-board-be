@@ -170,6 +170,7 @@ export class TalentService {
     return formatTalentResult(user, {
       is_saved: Boolean(saved),
       is_upvoted: Boolean(upvoted),
+      include_resume_download_url: Boolean(recruiterId),
     });
   }
 

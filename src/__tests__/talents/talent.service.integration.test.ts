@@ -15,7 +15,7 @@ import { ClientError } from "../../exceptions/clientError";
 import { NotFoundError } from "../../exceptions/notFoundError";
 import { TalentSearchResult } from "../../interfaces";
 import { TalentService } from "../../talents/services/talent.service";
-import { resolveAssetUrl } from "../../utils/resolveAssetUrl";
+import { resumeDownloadUrl } from "../../files/fileUrls";
 
 const recruiterFactory = (email: string): Partial<UserEntity> => ({
   first_name: "Recruiter",
@@ -394,7 +394,7 @@ describe("Talent Service", () => {
     });
 
     it("returns full talent profile when user and profile exist", async () => {
-      const { talent } = await setupUsers(
+      const { talent, recruiter } = await setupUsers(
         {
           resume_path: "jane-resume.pdf",
           portfolio_url: "https://jane.dev",
@@ -419,7 +419,6 @@ describe("Talent Service", () => {
         id: talent.id,
         first_name: "Jane",
         last_name: "Doe",
-        resume_path: resolveAssetUrl("jane-resume.pdf"),
         portfolio_url: "https://jane.dev",
         skills: expect.arrayContaining(["React", "Node.js"]),
         experience_level: ExperienceLevel.INTERMEDIATE,
@@ -428,6 +427,17 @@ describe("Talent Service", () => {
           recruiter_saves: 2,
         },
       });
+      expect(result).not.toHaveProperty("resume_path");
+      expect(result).not.toHaveProperty("resume_download_url");
+
+      const recruiterResult = await talentService.getTalentById(
+        talent.id,
+        recruiter.id,
+      );
+      expect(recruiterResult).not.toHaveProperty("resume_path");
+      expect(recruiterResult.resume_download_url).toBe(
+        resumeDownloadUrl(talent.id),
+      );
     });
   });
 

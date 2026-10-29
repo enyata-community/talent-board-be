@@ -1,3 +1,7 @@
+import { storeUploadedFile } from "@src/files/storeUploadedFile";
+jest.mock("@src/files/storeUploadedFile", () => ({
+  storeUploadedFile: jest.fn(),
+}));
 import { NextFunction, Request, Response } from "express";
 import { HiringFor } from "../../entities/recruiterProfile.entity";
 import { UserRole } from "../../entities/user.entity";
@@ -27,6 +31,7 @@ describe("onboard controller", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (storeUploadedFile as jest.Mock).mockResolvedValue("resumes/random.pdf");
     mockSendWelcome.mockResolvedValue(undefined);
 
     jest
@@ -69,7 +74,7 @@ describe("onboard controller", () => {
     const [userIdArg, payloadArg, roleArg] = mockOnboardUser.mock.calls[0];
 
     expect(userIdArg).toBe("mock-user-id");
-    expect(payloadArg.resume_path).toBe("uploads/resumes/mock-resume.pdf");
+    expect(payloadArg.resume_path).toBe("resumes/random.pdf");
     expect(roleArg).toBe(UserRole.TALENT);
     expect(mockCreateSendToken).toHaveBeenCalledWith(
       mockUser,

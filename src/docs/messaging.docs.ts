@@ -24,7 +24,7 @@
  *         avatar:
  *           type: string
  *           nullable: true
- *           example: "uploads/avatars/ada.png"
+ *           example: "http://localhost:8000/api/v1/assets/avatars/ada.png"
  *         role:
  *           type: string
  *           nullable: true
