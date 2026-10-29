@@ -49,6 +49,8 @@ describe("Migration ordering and dependency integrity", () => {
     ["EnforceSingleSuperAdmin", "UnifyAdminUserIdentities"],
     ["UnifyAdminUserIdentities", "AddOtpAttempts"],
     ["AddOtpAttempts", "CreateAuthSecurityState"],
+    ["CreateAuthSecurityState", "AddUserAccountStatus"],
+    ["AddUserAccountStatus", "AddUserLastActivity"],
   ])("runs %s before %s", (prerequisite, dependent) => {
     const before = migrations.findIndex((migration) =>
       migration.name.startsWith(prerequisite),

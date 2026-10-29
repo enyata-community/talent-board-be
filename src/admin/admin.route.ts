@@ -18,6 +18,8 @@ import {
   setupSchema,
 } from "./schemas/admin.schema";
 import * as controller from "./admin.controller";
+import * as usersController from "./adminUsers.controller";
+import { adminUsersSchema } from "./schemas/adminUsers.schema";
 
 // The realm is assigned by server-side route mounting, never client input.
 export const createAdminRouter = (role: AdminRole) => {
@@ -43,6 +45,17 @@ export const createAdminRouter = (role: AdminRole) => {
   router.post("/auth/logout", controller.logout);
   router.use(authenticateAdmin);
   router.get("/auth/me", controller.me);
+  router.get(
+    "/users",
+    validateData(adminUsersSchema, ["query"]),
+    usersController.listUsers,
+  );
+  router.get(
+    "/users/:id",
+    validateData(idSchema, ["params"]),
+    validateData(listSchema, ["query"]),
+    usersController.getUser,
+  );
   if (role === AdminRole.SUPER_ADMIN) {
     router.use(requireSuperAdmin);
     router.get(

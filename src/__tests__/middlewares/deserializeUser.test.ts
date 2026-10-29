@@ -7,11 +7,13 @@ import {
 } from "../../entities/user.entity";
 import { deserializeUser } from "../../middlewares/deserializeUser";
 import { signToken, verifyToken } from "../../utils/jwt";
+import { recordUserActivity } from "../../users/userActivity";
 
 jest.mock("@src/utils/jwt");
 jest.mock("@src/entities/user.entity");
 jest.mock("@src/entities/refreshToken.entity");
 jest.mock("@src/datasource");
+jest.mock("../../users/userActivity");
 
 const mockReq = {} as Request;
 const mockRes = {
@@ -66,6 +68,7 @@ describe("deserializeUser middleware", () => {
       );
       expect(req.user).toBeUndefined();
       expect(signToken).not.toHaveBeenCalled();
+      expect(recordUserActivity).not.toHaveBeenCalled();
     },
   );
   it("should attach user to request if access token is valid", async () => {
@@ -82,6 +85,10 @@ describe("deserializeUser middleware", () => {
 
     await deserializeUser(req, mockRes, mockNext);
     expect(req.user).toEqual(mockUser);
+    expect(recordUserActivity).toHaveBeenCalledWith(
+      mockUser,
+      AppDataSource.manager,
+    );
     expect(mockNext).toHaveBeenCalled();
   });
 
@@ -132,6 +139,10 @@ describe("deserializeUser middleware", () => {
       expect.objectContaining({ token: "valid-refresh", is_valid: false }),
     );
     expect(req.user).toEqual(mockUser);
+    expect(recordUserActivity).toHaveBeenCalledWith(
+      mockUser,
+      entityManagerMock,
+    );
     expect(mockNext).toHaveBeenCalledWith();
   });
 
@@ -156,6 +167,7 @@ describe("deserializeUser middleware", () => {
     );
     expect(signToken).not.toHaveBeenCalled();
     expect(tx.save).not.toHaveBeenCalled();
+    expect(recordUserActivity).not.toHaveBeenCalled();
   });
 
   it("should throw if no tokens are provided", async () => {

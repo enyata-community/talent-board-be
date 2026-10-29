@@ -1,6 +1,8 @@
 import { createSendToken } from "@src/utils/createSendToken";
 import { signToken } from "@src/utils/jwt";
+import { recordUserActivity } from "@src/users/userActivity";
 jest.mock("@src/utils/jwt");
+jest.mock("@src/users/userActivity");
 
 test("session responses keep refresh tokens exclusively in HttpOnly cookies", async () => {
   (signToken as jest.Mock).mockImplementation((_id, key) =>
@@ -22,6 +24,10 @@ test("session responses keep refresh tokens exclusively in HttpOnly cookies", as
     "OK",
     { headers: {}, socket: {} } as any,
     res,
+    manager,
+  );
+  expect(recordUserActivity).toHaveBeenCalledWith(
+    expect.objectContaining({ id: "user" }),
     manager,
   );
   expect(res.cookie).toHaveBeenCalledWith(

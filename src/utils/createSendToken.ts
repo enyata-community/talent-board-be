@@ -6,6 +6,7 @@ import type { Request, Response } from "express";
 import { EntityManager } from "typeorm";
 import { signToken } from "./jwt";
 import { sanitizeUser } from "./sanitizeUser";
+import { recordUserActivity } from "../users/userActivity";
 
 interface CookieOptions {
   expires?: Date;
@@ -59,6 +60,7 @@ export const createSendToken = async (
   });
 
   await entityManager.save(refresh);
+  await recordUserActivity(user, entityManager);
 
   let cookieExpiresDays: string | number;
 
