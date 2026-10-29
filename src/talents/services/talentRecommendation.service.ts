@@ -1,3 +1,4 @@
+import { ProfileStatus } from "@src/entities/talentProfile.entity";
 import AppDataSource from "@src/datasource";
 import { SavedTalentEntity } from "@src/entities/savedTalent.entity";
 import { TalentProfileEntity } from "@src/entities/talentProfile.entity";
@@ -31,7 +32,10 @@ export class TalentRecommendationService {
       .then((records) => records.map((record) => record.talent.id));
 
     const allTalents = await this.talentRepository.find({
-      where: { user: { id: Not(In(savedTalentIds)) } },
+      where: {
+        profile_status: ProfileStatus.APPROVED,
+        user: { id: Not(In(savedTalentIds)), profile_completed: true },
+      },
       relations: ["user", "user.metrics", "skills"],
     });
 

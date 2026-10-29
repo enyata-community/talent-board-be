@@ -5,3 +5,8 @@ data
 *.log
 .env
 .env.example
+
+# Never bake user uploads or repository history into an image
+uploads
+private-uploads
+.git

@@ -5,8 +5,7 @@ export const injectResumePath = (
   _res: Response,
   next: NextFunction,
 ) => {
-  if (req.file && req.file.path) {
-    req.body.resume_path = req.file.path;
-  }
+  // The schema requires an upload; ignore any path supplied by the client.
+  req.body.resume_path = req.file ? "pending-upload" : undefined;
   next();
 };

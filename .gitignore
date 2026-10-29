@@ -11,3 +11,7 @@ coverage/
 .vscode/
 
 package-lock.json
+
+# User uploads and private local storage
+uploads/
+private-uploads/

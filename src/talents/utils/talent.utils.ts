@@ -1,3 +1,4 @@
+import { resumeDownloadUrl } from "@src/files/fileUrls";
 import { MetricsEntity } from "@src/entities/metrics.entity";
 import { SavedTalentEntity } from "@src/entities/savedTalent.entity";
 import { TalentProfileEntity } from "@src/entities/talentProfile.entity";
@@ -181,7 +182,11 @@ export const buildTalentQuery = (
  */
 export const formatTalentResult = (
   input: TalentProfileEntity | SavedTalentEntity | UserEntity,
-  options?: { is_saved?: boolean; is_upvoted?: boolean },
+  options?: {
+    is_saved?: boolean;
+    is_upvoted?: boolean;
+    include_resume_download_url?: boolean;
+  },
 ): Partial<TalentSearchResult> => {
   let user: UserEntity;
   let profile: TalentProfileEntity | null;
@@ -212,7 +217,6 @@ export const formatTalentResult = (
     id: user.id,
     first_name: user.first_name,
     last_name: user.last_name,
-    email: user.email,
     avatar: user.avatar,
     state: user.state,
     country: user.country,
@@ -223,11 +227,14 @@ export const formatTalentResult = (
     job_title: profile?.job_title ?? "",
     experience_level: profile?.experience_level ?? "",
     portfolio_url: profile?.portfolio_url ?? "",
-    resume_path: profile?.resume_path,
     upvotes: metrics?.upvotes ?? 0,
     is_saved: options?.is_saved ?? false,
     is_upvoted: options?.is_upvoted ?? false,
   };
+
+  if (options?.include_resume_download_url && profile?.resume_path) {
+    result.resume_download_url = resumeDownloadUrl(user.id);
+  }
 
   if (result.avatar) {
     result.avatar = resolveAssetUrl(result.avatar);
@@ -235,7 +242,6 @@ export const formatTalentResult = (
 
   if (resume_path && recruiter_saves) {
     // UserEntity (getTalentById)
-    result.resume_path = resolveAssetUrl(result.resume_path);
     result.metrics = {
       upvotes: metrics?.upvotes ?? 0,
       recruiter_saves: recruiter_saves,

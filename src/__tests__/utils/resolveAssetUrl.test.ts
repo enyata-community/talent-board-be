@@ -6,15 +6,17 @@ describe("resolveAssetUrl", () => {
   it("resolves upload paths against the configured base URL", () => {
     const mockConfig = {
       has: jest.fn().mockReturnValue(true),
-      get: jest.fn().mockReturnValue("https://talents-api.enyata.com/"),
+      get: jest.fn((key) =>
+        key === "API_PREFIX" ? "api/v1" : "https://talents-api.enyata.com/",
+      ),
     };
 
     jest.doMock("config", () => mockConfig);
 
     const { resolveAssetUrl } = require("@src/utils/resolveAssetUrl");
 
-    expect(resolveAssetUrl("/uploads/resumes/resume.pdf")).toBe(
-      "https://talents-api.enyata.com/uploads/resumes/resume.pdf",
+    expect(resolveAssetUrl("/uploads/avatars/avatar.png")).toBe(
+      "https://talents-api.enyata.com/api/v1/assets/avatars/avatar.png",
     );
   });
 
