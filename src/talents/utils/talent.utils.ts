@@ -184,8 +184,8 @@ export const formatTalentResult = (
   options?: { is_saved?: boolean; is_upvoted?: boolean },
 ): Partial<TalentSearchResult> => {
   let user: UserEntity;
-  let profile: TalentProfileEntity | null = null;
-  let metrics: MetricsEntity = null;
+  let profile: TalentProfileEntity | null;
+  let metrics: MetricsEntity;
   let resume_path: string;
   let recruiter_saves: number = 0;
 

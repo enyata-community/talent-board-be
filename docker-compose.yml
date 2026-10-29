@@ -105,16 +105,19 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: builder
       args:
         - NODE_ENV=test
     environment:
       NODE_ENV: test
+      TALENTS_NODE_ENV: test
+      TEST_DATABASE_URL: postgres://test_user:test_password@postgres_test:5432/test_db
       IS_DOCKER: true
       DB_HOST: postgres_test
       REDIS_HOST: redis
     volumes:
       - .:/app
-    command: yarn test
+    command: sh -c "yarn test:unit && yarn test:integration"
     depends_on:
       - postgres_test
       - redis

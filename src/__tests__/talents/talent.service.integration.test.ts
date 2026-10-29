@@ -63,11 +63,17 @@ describe("Talent Service", () => {
 
   beforeAll(async () => {
     await initializeDataSource();
+    await AppDataSource.runMigrations();
     talentService = new TalentService();
   });
 
   beforeEach(async () => {
-    await AppDataSource.synchronize(true);
+    const tables = await AppDataSource.query(
+      "SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename NOT IN ('migrations', 'admin_audit_logs')",
+    );
+    await AppDataSource.query(
+      `TRUNCATE ${tables.map((row: any) => '"' + row.tablename.replace(/"/g, '""') + '"').join(", ")} RESTART IDENTITY CASCADE`,
+    );
   });
 
   afterAll(async () => {

@@ -15,10 +15,20 @@ jest.mock("../../utils/logger", () => ({
   __esModule: true,
   default: { info: jest.fn(), error: jest.fn() },
 }));
-const suite = process.env.MIGRATION_TEST_DATABASE_URL
-  ? describe
-  : describe.skip;
-suite("Complete migration sequence on an empty PostgreSQL database", () => {
+async function rollbackIdentityMigration(): Promise<number> {
+  let count = 0;
+  while (true) {
+    const [latest] = await AppDataSource.query(
+      "SELECT name FROM migrations ORDER BY id DESC LIMIT 1",
+    );
+    if (!latest) throw new Error("Identity migration was not applied");
+    await AppDataSource.undoLastMigration();
+    count++;
+    if (latest.name === "UnifyAdminUserIdentities1793000002000") return count;
+  }
+}
+
+describe("Complete migration sequence on an empty PostgreSQL database", () => {
   beforeAll(async () => {
     AppDataSource.setOptions({
       url: process.env.MIGRATION_TEST_DATABASE_URL,
@@ -101,7 +111,7 @@ suite("Complete migration sequence on an empty PostgreSQL database", () => {
     );
   });
   it("migrates existing identities without breaking their sessions, invitations, or audit IDs", async () => {
-    await AppDataSource.undoLastMigration();
+    const reappliedCount = await rollbackIdentityMigration();
     const password = await hash("Migrated1");
     const rows = await AppDataSource.query(
       `INSERT INTO admin_accounts (email, role, status, password_hash, password_set_at, display_name)
@@ -129,7 +139,7 @@ suite("Complete migration sequence on an empty PostgreSQL database", () => {
       `INSERT INTO admin_audit_logs (actor_id, actor_role, action, outcome) VALUES ($1, 'super_admin', 'legacy.event', 'success')`,
       [rootId],
     );
-    expect(await AppDataSource.runMigrations()).toHaveLength(1);
+    expect(await AppDataSource.runMigrations()).toHaveLength(reappliedCount);
     const root = await adminAccountQuery(AppDataSource.manager)
       .where("account.id = :id", { id: rootId })
       .getOneOrFail();
@@ -166,7 +176,7 @@ suite("Complete migration sequence on an empty PostgreSQL database", () => {
     ).toHaveLength(1);
   });
   it("aborts on email conflicts without changing the marketplace identity", async () => {
-    await AppDataSource.undoLastMigration();
+    const reappliedCount = await rollbackIdentityMigration();
     await AppDataSource.query(
       `INSERT INTO users (email, provider, role, password) VALUES ('legacy-root@example.com', 'local', 'talent', 'unchanged')`,
     );
@@ -185,6 +195,6 @@ suite("Complete migration sequence on an empty PostgreSQL database", () => {
     await AppDataSource.query(
       `DELETE FROM users WHERE email = 'legacy-root@example.com'`,
     );
-    expect(await AppDataSource.runMigrations()).toHaveLength(1);
+    expect(await AppDataSource.runMigrations()).toHaveLength(reappliedCount);
   });
 });

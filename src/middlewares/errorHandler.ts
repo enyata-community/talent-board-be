@@ -51,10 +51,14 @@ const errorHandler = (
   res: Response,
   next: NextFunction,
 ) => {
+  if (res.headersSent) return next(err);
+
   err.statusCode = err.statusCode ?? 500;
   err.status = err.status ?? "error";
 
-  const env = config.get<string>("NODE_ENV");
+  const env = config.has("NODE_ENV")
+    ? config.get<string>("NODE_ENV")
+    : process.env.NODE_ENV;
 
   if (env === "development") {
     sendErrorDev(err, req, res);

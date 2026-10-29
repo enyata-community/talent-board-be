@@ -52,6 +52,7 @@ describe("OnboardingService - Local User Refactor", () => {
     mockGetOneOrFail = jest.fn().mockResolvedValue({ profile_completed: true });
 
     mockManager = {
+      findOne: jest.fn().mockResolvedValue(null),
       save: jest.fn(),
       create: jest.fn().mockImplementation((_, data) => data),
       createQueryBuilder: jest.fn().mockReturnValue({
@@ -121,7 +122,9 @@ describe("OnboardingService - Local User Refactor", () => {
         UserRole.RECRUITER,
       ),
     ).rejects.toThrow(
-      new ClientError("First name is required to complete onboarding"),
+      new ClientError(
+        "First name and last name are required to complete onboarding",
+      ),
     );
   });
 
