@@ -610,14 +610,27 @@ describe("Admin Portal PostgreSQL integration", () => {
       );
     }
   });
-  it("enforces exactly one Super Admin identity in PostgreSQL", async () => {
+  it("allows at most two Super Admin slots in PostgreSQL", async () => {
+    // A bare identity holds no slot until it is active or has an open invitation.
+    const second = await ds.manager.save(UserEntity, {
+      email: "second-root@example.com",
+      role: UserRole.SUPER_ADMIN,
+      provider: UserProvider.LOCAL,
+    });
+    await ds.manager.save(AdminAccount, {
+      user_id: second.id,
+      status: AdminStatus.ACTIVE,
+    });
     await expect(
       ds.manager.insert(UserEntity, {
-        email: "second-root@example.com",
+        email: "third-root@example.com",
         role: UserRole.SUPER_ADMIN,
         provider: UserProvider.LOCAL,
       }),
-    ).rejects.toMatchObject({ code: "23505" });
+    ).rejects.toMatchObject({ code: "23514" });
+    // Later tests resolve the sole bootstrap Super Admin by role.
+    await ds.manager.delete(AdminAccount, { user_id: second.id });
+    await ds.manager.delete(UserEntity, { id: second.id });
   });
   it("creates invitations with entity validation enabled outside test mode", async () => {
     const root = await ds.getRepository(AdminAccount).findOneByOrFail({

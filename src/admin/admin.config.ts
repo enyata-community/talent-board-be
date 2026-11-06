@@ -24,5 +24,8 @@ export const adminConfig = (role: AdminRole = AdminRole.ADMIN) => {
     invitationMs: 24 * 60 * 60 * 1000,
     sessionMs: 8 * 60 * 60 * 1000,
     idleMs: 30 * 60 * 1000,
+    stepUpMs: 5 * 60 * 1000,
+    lockoutAttempts: 5,
+    lockoutMs: 15 * 60 * 1000,
   };
 };

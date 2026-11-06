@@ -53,6 +53,7 @@ describe("Migration ordering and dependency integrity", () => {
     ["AddUserAccountStatus", "AddUserLastActivity"],
     ["AddUserLastActivity", "AddAccountSuspension"],
     ["AddAccountSuspension", "NormalizeIpv4MappedAddresses"],
+    ["NormalizeIpv4MappedAddresses", "AddAdminRoleLifecycle"],
   ])("runs %s before %s", (prerequisite, dependent) => {
     const before = migrations.findIndex((migration) =>
       migration.name.startsWith(prerequisite),

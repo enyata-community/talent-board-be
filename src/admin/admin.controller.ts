@@ -48,6 +48,15 @@ export const me = asyncHandler(async (req, res) => {
     },
   });
 });
+export const reauthenticate = asyncHandler(async (req, res) => {
+  const until = await auth.reauthenticate(
+    req.adminSession!,
+    req.admin!,
+    req.body.password,
+    context(req),
+  );
+  res.json({ status: "success", data: { reauthenticated_until: until } });
+});
 export const logout = asyncHandler(async (req, res) => {
   const token = req.cookies?.[adminConfig(req.adminRealm).cookie];
   if (token) {
@@ -100,6 +109,7 @@ export const invite = asyncHandler(async (req, res) => {
       req.body.display_name,
       context(req),
       { first_name: req.body.first_name, last_name: req.body.last_name },
+      req.body.role,
     ),
   });
 });

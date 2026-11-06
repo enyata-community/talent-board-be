@@ -1,5 +1,9 @@
 import { createHash, randomBytes, timingSafeEqual } from "crypto";
-import { AdminAccount, AdminRole } from "../entities/adminAccount.entity";
+import {
+  AdminAccount,
+  AdminRole,
+  AdminStatus,
+} from "../entities/adminAccount.entity";
 import { AppError } from "../exceptions/appError";
 export const secret = () => randomBytes(32).toString("hex");
 export const digest = (value: string) =>
@@ -37,3 +41,10 @@ export const csrfTokenError = (missing: boolean) =>
   );
 export const roleError = (roles: AdminRole[]) =>
   new AppError(`Access denied. Requires role: ${roles.join(", ")}`, 403);
+export const assertActiveSuperAdmin = (actor?: AdminAccount) => {
+  if (
+    actor?.role !== AdminRole.SUPER_ADMIN ||
+    actor.status !== AdminStatus.ACTIVE
+  )
+    throw roleError([AdminRole.SUPER_ADMIN]);
+};

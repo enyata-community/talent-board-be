@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AdminRole, AdminStatus } from "../../entities/adminAccount.entity";
 export const email = z.string().trim().toLowerCase().email().max(254);
 export const loginSchema = z
   .object({ email, password: z.string().min(1).max(128) })
@@ -12,6 +13,7 @@ export const invitationSchema = z
     email,
     display_name: z.string().trim().min(1).max(100).optional(),
     ...nameFields,
+    role: z.nativeEnum(AdminRole).default(AdminRole.ADMIN),
   })
   .strict();
 export const setupSchema = z
@@ -36,3 +38,26 @@ export const auditListSchema = listSchema
     to: z.string().datetime().optional(),
   })
   .refine((v) => !v.from || !v.to || v.from <= v.to, "Invalid date range");
+export const reauthenticateSchema = z
+  .object({ password: z.string().min(1).max(128) })
+  .strict();
+export const adminAccountsSchema = listSchema
+  .extend({
+    role: z.nativeEnum(AdminRole).optional(),
+    status: z.nativeEnum(AdminStatus).optional(),
+  })
+  .strict();
+export type AdminAccountsQuery = z.infer<typeof adminAccountsSchema>;
+export const adminRoleSchema = z
+  .object({ role: z.nativeEnum(AdminRole) })
+  .strict();
+// Explicit target status, like user status; reactivation awaits a product decision.
+export const adminStatusSchema = z
+  .object({
+    status: z.literal(AdminStatus.DISABLED, {
+      errorMap: () => ({
+        message: "must be disabled; admin reactivation is not available yet",
+      }),
+    }),
+  })
+  .strict();

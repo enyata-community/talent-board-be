@@ -19,7 +19,11 @@ import { AppError } from "../exceptions/appError";
 import { EmailService } from "../utils/email";
 import { adminConfig } from "./admin.config";
 import { audit, AuditContext, withFailureAudit } from "./adminAudit.service";
-import { digest, roleError, secret } from "./admin.utils";
+import { assertActiveSuperAdmin, digest, secret } from "./admin.utils";
+import {
+  assertSuperAdminSlot,
+  lockSuperAdminSlots,
+} from "./adminAccounts.service";
 
 export class AdminInvitationService {
   private async createInvitation(
@@ -126,19 +130,21 @@ export class AdminInvitationService {
     displayName: string | undefined,
     context: AuditContext,
     names?: IdentityNames,
+    role: AdminRole = AdminRole.ADMIN,
   ) {
     const result = await withFailureAudit(
       "admin.invitation.create",
       context,
       undefined,
       () => {
-        this.requireSuperAdmin(context);
+        assertActiveSuperAdmin(context.actor);
         adminConfig();
         return AppDataSource.transaction(async (tx) => {
+          if (role === AdminRole.SUPER_ADMIN) await assertSuperAdminSlot(tx);
           const account = await createAdminIdentity(
             tx,
             email,
-            AdminRole.ADMIN,
+            role,
             displayName,
             names,
           );
@@ -153,11 +159,12 @@ export class AdminInvitationService {
             "success",
             context,
             invitation.invitation.id,
+            { role },
           );
           return invitation;
         });
       },
-      { email },
+      { email, role },
     );
     return this.deliver(result);
   }
@@ -168,9 +175,11 @@ export class AdminInvitationService {
       context,
       id,
       () => {
-        this.requireSuperAdmin(context);
+        assertActiveSuperAdmin(context.actor);
         if (resend) adminConfig();
         return AppDataSource.transaction(async (tx) => {
+          // Take the Super Admin slot lock before row locks, matching role changes.
+          if (resend) await lockSuperAdminSlots(tx);
           const invitation = await tx.findOne(AdminInvitation, {
             where: { id },
             lock: { mode: "pessimistic_write" },
@@ -181,7 +190,7 @@ export class AdminInvitationService {
             invitation.admin_account_id,
             true,
           );
-          if (!account || account.role !== AdminRole.ADMIN)
+          if (!account || !isInternalRole(account.user.role))
             throw new AppError("Invitation cannot be managed here", 403);
           if (
             invitation.accepted_at ||
@@ -189,6 +198,8 @@ export class AdminInvitationService {
             account.status !== AdminStatus.PENDING
           )
             throw new AppError("Invitation is no longer pending", 409);
+          if (resend && account.role === AdminRole.SUPER_ADMIN)
+            await assertSuperAdminSlot(tx, account.user_id);
           await tx.update(AdminInvitation, { id }, { revoked_at: new Date() });
           await audit(
             tx,
@@ -284,13 +295,5 @@ export class AdminInvitationService {
         );
       throw error;
     }
-  }
-
-  private requireSuperAdmin(context: AuditContext) {
-    if (
-      context.actor?.role !== AdminRole.SUPER_ADMIN ||
-      context.actor.status !== AdminStatus.ACTIVE
-    )
-      throw roleError([AdminRole.SUPER_ADMIN]);
   }
 }
