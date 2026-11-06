@@ -8,6 +8,7 @@ import { UnauthorizedError } from "../exceptions/unauthorizedError";
 import { signToken, verifyToken } from "../utils/jwt";
 import { recordUserActivity } from "../users/userActivity";
 import asyncHandler from "./asyncHandler";
+import { assertAccountAccess } from "../auth/accountAccess";
 
 const extractTokens = (req: Request) => {
   let accessToken =
@@ -22,12 +23,13 @@ const extractTokens = (req: Request) => {
   return { accessToken, refreshToken };
 };
 
-const checkUserExists = async (userId: string) => {
+const checkUserExists = async (userId: string, sessionVersion?: number) => {
   const user = await UserEntity.findOne({ where: { id: userId } });
 
   if (!user || isInternalRole(user.role)) {
     throw new UnauthorizedError("User not found");
   }
+  assertAccountAccess(user, sessionVersion);
 
   return user;
 };
@@ -41,15 +43,16 @@ const refreshAccessToken = async (
   const decoded = verifyToken(refreshToken, "REFRESH_TOKEN_PUBLIC_KEY");
   if (!decoded) return false;
 
-  const user = await checkUserExists(decoded.id);
+  const user = await checkUserExists(decoded.id, decoded.session_version ?? 0);
   if (!user) return false;
 
   return entityManager.transaction(async (tx) => {
     // Serialize session issuance with password changes which update this row.
-    await tx.findOne(UserEntity, {
+    const current = await tx.findOne(UserEntity, {
       where: { id: user.id },
       lock: { mode: "pessimistic_write" },
     });
+    assertAccountAccess(current, decoded.session_version ?? 0);
     const storedToken = await tx.findOne(RefreshToken, {
       where: { token: refreshToken, is_valid: true, user: { id: user.id } },
       lock: { mode: "pessimistic_write" },
@@ -57,9 +60,14 @@ const refreshAccessToken = async (
     if (!storedToken) return false;
     storedToken.is_valid = false;
     await tx.save(storedToken);
-    const replacement = signToken(user.id, "REFRESH_TOKEN_PRIVATE_KEY", {
-      expiresIn: config.get<string>("REFRESH_TOKEN_TTL"),
-    });
+    const replacement = signToken(
+      user.id,
+      "REFRESH_TOKEN_PRIVATE_KEY",
+      {
+        expiresIn: config.get<string>("REFRESH_TOKEN_TTL"),
+      },
+      current.session_version ?? 0,
+    );
     await tx.save(
       tx.create(RefreshToken, {
         token: replacement,
@@ -75,9 +83,14 @@ const refreshAccessToken = async (
       sameSite: "lax",
       path: "/",
     });
-    return signToken(user.id, "ACCESS_TOKEN_PRIVATE_KEY", {
-      expiresIn: config.get<string>("ACCESS_TOKEN_TTL"),
-    });
+    return signToken(
+      user.id,
+      "ACCESS_TOKEN_PRIVATE_KEY",
+      {
+        expiresIn: config.get<string>("ACCESS_TOKEN_TTL"),
+      },
+      current.session_version ?? 0,
+    );
   });
 };
 
@@ -91,7 +104,10 @@ export const deserializeUser = asyncHandler(
       : null;
 
     if (decoded) {
-      const currentUser = await checkUserExists(decoded.id);
+      const currentUser = await checkUserExists(
+        decoded.id,
+        decoded.session_version ?? 0,
+      );
       await recordUserActivity(currentUser, entityManager);
       req.user = currentUser;
       return next();
@@ -120,7 +136,10 @@ export const deserializeUser = asyncHandler(
       res.setHeader("x-access-token", newAccessToken);
 
       const newDecoded = verifyToken(newAccessToken, "ACCESS_TOKEN_PUBLIC_KEY");
-      const currentUser = await checkUserExists(newDecoded!.id);
+      const currentUser = await checkUserExists(
+        newDecoded!.id,
+        newDecoded!.session_version ?? 0,
+      );
       await recordUserActivity(currentUser, entityManager);
       req.user = currentUser;
     }

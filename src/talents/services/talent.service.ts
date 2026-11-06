@@ -8,7 +8,7 @@ import {
   TalentProfileEntity,
 } from "@src/entities/talentProfile.entity";
 import { TalentUpvoteEntity } from "@src/entities/talentUpvote.entity";
-import { UserEntity, UserRole } from "@src/entities/user.entity";
+import { UserEntity, UserRole, UserStatus } from "@src/entities/user.entity";
 import { ClientError } from "@src/exceptions/clientError";
 import { NotFoundError } from "@src/exceptions/notFoundError";
 import { PaginatedResponse, TalentSearchResult } from "@src/interfaces";
@@ -36,9 +36,11 @@ export class TalentService {
     }
 
     const [recruiter, talent] = await Promise.all([
-      this.userRepo.findOne({ where: { id: recruiterId } }),
       this.userRepo.findOne({
-        where: { id: talentId },
+        where: { id: recruiterId, status: UserStatus.ACTIVE },
+      }),
+      this.userRepo.findOne({
+        where: { id: talentId, status: UserStatus.ACTIVE },
         relations: ["talent_profile"],
       }),
     ]);
@@ -137,6 +139,7 @@ export class TalentService {
       where: {
         id: talentId,
         role: UserRole.TALENT,
+        status: UserStatus.ACTIVE,
         profile_completed: true,
       },
       relations: ["talent_profile", "metrics", "talent_profile.skills"],
@@ -183,9 +186,16 @@ export class TalentService {
     }
 
     const [recruiter, talent] = await Promise.all([
-      this.userRepo.findOne({ where: { id: recruiterId } }),
       this.userRepo.findOne({
-        where: { id: talentId, role: UserRole.TALENT, profile_completed: true },
+        where: { id: recruiterId, status: UserStatus.ACTIVE },
+      }),
+      this.userRepo.findOne({
+        where: {
+          id: talentId,
+          role: UserRole.TALENT,
+          profile_completed: true,
+          status: UserStatus.ACTIVE,
+        },
         relations: ["talent_profile"],
       }),
     ]);
@@ -279,6 +289,7 @@ export class TalentService {
         user: {
           profile_completed: true,
           role: UserRole.TALENT,
+          status: UserStatus.ACTIVE,
         },
       },
     });

@@ -52,7 +52,11 @@ describe("OnboardingService - Local User Refactor", () => {
     mockGetOneOrFail = jest.fn().mockResolvedValue({ profile_completed: true });
 
     mockManager = {
-      findOne: jest.fn().mockResolvedValue(null),
+      findOne: jest
+        .fn()
+        .mockImplementation(() =>
+          (AppDataSource.manager.findOne as jest.Mock)(),
+        ),
       save: jest.fn(),
       create: jest.fn().mockImplementation((_, data) => data),
       createQueryBuilder: jest.fn().mockReturnValue({

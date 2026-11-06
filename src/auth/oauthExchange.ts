@@ -1,11 +1,16 @@
 import AppDataSource from "@src/datasource";
-import { UserEntity, isInternalRole } from "@src/entities/user.entity";
+import {
+  UserEntity,
+  UserStatus,
+  isInternalRole,
+} from "@src/entities/user.entity";
 import { UnauthorizedError } from "@src/exceptions/unauthorizedError";
 import asyncHandler from "@src/middlewares/asyncHandler";
 import { createSendToken } from "@src/utils/createSendToken";
 import { saveAuthChallenge, consumeAuthChallenge } from "./authSecurityStore";
 import { randomBytes } from "crypto";
 import type { Request, Response } from "express";
+import { assertAccountAccess } from "./accountAccess";
 
 const exchangeCookieOptions = (req: Request) => ({
   httpOnly: true,
@@ -18,10 +23,16 @@ export async function createOAuthExchangeCode(
   userId: string,
   req: Request,
   res: Response,
+  sessionVersion = 0,
 ): Promise<string> {
   const code = randomBytes(32).toString("hex");
   const binding = randomBytes(32).toString("hex");
-  await saveAuthChallenge(`oauth-exchange:${code}`, binding, { userId }, 60);
+  await saveAuthChallenge(
+    `oauth-exchange:${code}`,
+    binding,
+    { userId, sessionVersion: String(sessionVersion) },
+    60,
+  );
   res.cookie("oauth_exchange", binding, exchangeCookieOptions(req));
   return code;
 }
@@ -47,8 +58,13 @@ export const exchangeOAuthCode = asyncHandler(
     const user = await AppDataSource.manager.findOne(UserEntity, {
       where: { id: userId },
     });
-    if (!user || isInternalRole(user.role))
+    if (
+      !user ||
+      isInternalRole(user.role) ||
+      user.status === UserStatus.SUSPENDED
+    )
       throw new UnauthorizedError("Invalid OAuth account");
+    assertAccountAccess(user, Number(stored.sessionVersion ?? "0"));
     res.setHeader("Cache-Control", "no-store");
     await createSendToken(
       user,

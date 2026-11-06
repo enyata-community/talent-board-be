@@ -47,6 +47,18 @@ import AppDataSource from "./datasource";
 const app: Express = express();
 app.disable("x-powered-by");
 
+const trustProxy = config.get<string>("TRUST_PROXY");
+app.set(
+  "trust proxy",
+  trustProxy === "true"
+    ? true
+    : trustProxy === "false"
+      ? false
+      : /^\d+$/.test(trustProxy)
+        ? Number(trustProxy)
+        : trustProxy,
+);
+
 app.use(helmet(helmetOptions));
 if (
   config.get<string>("NODE_ENV") === "production" &&

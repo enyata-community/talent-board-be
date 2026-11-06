@@ -48,7 +48,12 @@ export const linkedInOAuthCallback = asyncHandler(
 
     const redirectUri = res.locals.oauthRedirect;
 
-    const code = await createOAuthExchangeCode(user.id, req, res);
+    const code = await createOAuthExchangeCode(
+      user.id,
+      req,
+      res,
+      user.session_version ?? 0,
+    );
     const destination = new URL(redirectUri);
     destination.searchParams.set("code", code);
     res.setHeader("Cache-Control", "no-store");

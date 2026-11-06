@@ -19,4 +19,6 @@ export class AdminAuditLog {
   @Column({ type: "varchar", nullable: true }) target_id: string | null;
   @Column({ type: "varchar", nullable: true }) request_id: string | null;
   @Column({ type: "varchar", nullable: true }) ip_address: string | null;
+  @Column({ type: "jsonb", default: () => "'{}'::jsonb" })
+  metadata: Record<string, unknown>;
 }

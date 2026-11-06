@@ -7,13 +7,14 @@ export const signToken = (
   id: string,
   keyName: "ACCESS_TOKEN_PRIVATE_KEY" | "REFRESH_TOKEN_PRIVATE_KEY",
   options?: object,
+  sessionVersion = 0,
 ): string => {
   const signingKey = Buffer.from(
     config.get<string>(keyName),
     "base64",
   ).toString("ascii");
 
-  return sign({ id }, signingKey, {
+  return sign({ id, session_version: sessionVersion }, signingKey, {
     ...(options && options),
     algorithm: "RS256",
     jwtid: randomUUID(),

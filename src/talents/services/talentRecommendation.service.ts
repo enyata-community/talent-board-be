@@ -2,7 +2,7 @@ import { ProfileStatus } from "@src/entities/talentProfile.entity";
 import AppDataSource from "@src/datasource";
 import { SavedTalentEntity } from "@src/entities/savedTalent.entity";
 import { TalentProfileEntity } from "@src/entities/talentProfile.entity";
-import { UserEntity } from "@src/entities/user.entity";
+import { UserEntity, UserStatus } from "@src/entities/user.entity";
 import { In, Not } from "typeorm";
 import {
   normalizeSkills,
@@ -18,7 +18,7 @@ export class TalentRecommendationService {
 
   async recommendTalents(recruiterId: string) {
     const recruiter = await this.userRepository.findOne({
-      where: { id: recruiterId },
+      where: { id: recruiterId, status: UserStatus.ACTIVE },
       relations: ["recruiter_profile"],
     });
 
@@ -34,7 +34,11 @@ export class TalentRecommendationService {
     const allTalents = await this.talentRepository.find({
       where: {
         profile_status: ProfileStatus.APPROVED,
-        user: { id: Not(In(savedTalentIds)), profile_completed: true },
+        user: {
+          id: Not(In(savedTalentIds)),
+          profile_completed: true,
+          status: UserStatus.ACTIVE,
+        },
       },
       relations: ["user", "user.metrics", "skills"],
     });

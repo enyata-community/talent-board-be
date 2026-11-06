@@ -370,6 +370,7 @@
  *     tags:
  *       - Super Admin
  *     summary: List audit events (Super Admin only)
+ *     description: Every admin action is recorded, including failed (outcome failure) and denied attempts. Viewing this log is itself recorded as admin.audit_log.view. Browsers set Origin automatically. For Postman/curl, send the configured portal origin.
  *     security:
  *       - superAdminSession: []
  *     responses:
@@ -403,14 +404,13 @@
  *         schema: {type: string}
  *       - in: query
  *         name: outcome
- *         schema: {type: string}
+ *         schema: {type: string, enum: [success, failure, denied]}
  *       - in: query
  *         name: from
  *         schema: {type: string}
  *       - in: query
  *         name: to
  *         schema: {type: string}
- *     description: Browsers set Origin automatically. For Postman/curl, send the configured portal origin.
  * components:
  *   schemas:
  *     AdminIdentity:
@@ -458,5 +458,6 @@
  *         request_id: {type: [string, 'null']}
  *         ip_address: {type: [string, 'null']}
  *         occurred_at: {type: [string, 'null']}
+ *         metadata: {type: object, additionalProperties: true, description: 'Successful user status transitions include account_type, previous_status, status, reason and note. Failure and denied rows include status_code and error plus the attempted values. user.view and admin.audit_log.view record access to personal data and to this log (the latter with its filters).'}
  */
 export {};

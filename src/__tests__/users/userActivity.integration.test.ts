@@ -13,7 +13,14 @@ describe("Persisted user activity PostgreSQL integration", () => {
   beforeAll(async () => {
     await AppDataSource.initialize();
     await AppDataSource.runMigrations();
-    await AppDataSource.undoLastMigration();
+    // Roll back through the activity migration even when later migrations exist.
+    while (true) {
+      const [latest] = await AppDataSource.query(
+        "SELECT name FROM migrations ORDER BY id DESC LIMIT 1",
+      );
+      await AppDataSource.undoLastMigration();
+      if (latest.name === "AddUserLastActivity1793100003000") break;
+    }
     const insert = async (email: string, role: string, deleted = false) => {
       const [row] = await AppDataSource.query(
         `INSERT INTO users (email, role, provider, deleted_at)
@@ -77,6 +84,7 @@ describe("Persisted user activity PostgreSQL integration", () => {
       await runner.query(`SET TIME ZONE 'UTC'`);
       await runner.release();
     }
+    await AppDataSource.runMigrations();
     await AppDataSource.query(`
       CREATE TABLE activity_test_writes (user_id uuid NOT NULL);
       CREATE FUNCTION activity_test_count_write() RETURNS trigger LANGUAGE plpgsql AS $$

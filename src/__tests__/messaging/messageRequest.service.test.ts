@@ -486,7 +486,8 @@ describe("MessageRequestService", () => {
 
       expect(mockRequestRepo.findAndCount).toHaveBeenCalledWith({
         where: {
-          talent: { id: talent.id },
+          talent: { id: talent.id, status: "active" },
+          recruiter: { status: "active" },
           status: MessageRequestStatus.PENDING,
         },
         relations: ["recruiter", "talent"],
@@ -520,7 +521,8 @@ describe("MessageRequestService", () => {
 
       expect(mockRequestRepo.findAndCount).toHaveBeenCalledWith({
         where: {
-          recruiter: { id: recruiter.id },
+          recruiter: { id: recruiter.id, status: "active" },
+          talent: { status: "active" },
           status: MessageRequestStatus.DECLINED,
         },
         relations: ["recruiter", "talent"],

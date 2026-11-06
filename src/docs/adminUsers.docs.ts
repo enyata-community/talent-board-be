@@ -40,7 +40,7 @@
  *   get:
  *     tags: [Admin]
  *     summary: Inspect a Talent or Recruiter account
- *     description: Returns account and profile information plus active conversation connections and saved-talent pipeline relationships. Page and limit apply independently to both relationship collections. Deleted accounts and relationships are excluded. Message bodies, passwords, session tokens, and storage keys are omitted. Interview scheduling is unavailable in the current data model. Read-only; no CSRF header required.
+ *     description: Returns account and profile information plus active conversation connections and saved-talent pipeline relationships. Page and limit apply independently to both relationship collections. Deleted accounts and relationships are excluded. Message bodies, passwords, session tokens, and storage keys are omitted. Interview scheduling is unavailable in the current data model. Read-only; no CSRF header required. Each view, including failed ones, is audited as user.view; if the audit record cannot be written the request fails and no data is returned.
  *     security: [{adminSession: []}]
  *     parameters:
  *       - {$ref: '#/components/parameters/ManagedUserId'}
@@ -55,7 +55,7 @@
  *   get:
  *     tags: [Super Admin]
  *     summary: Inspect a Talent or Recruiter account
- *     description: Returns account and profile information plus active conversation connections and saved-talent pipeline relationships. Page and limit apply independently to both relationship collections. Deleted accounts and relationships are excluded. Message bodies, passwords, session tokens, and storage keys are omitted. Interview scheduling is unavailable in the current data model. Read-only; no CSRF header required.
+ *     description: Returns account and profile information plus active conversation connections and saved-talent pipeline relationships. Page and limit apply independently to both relationship collections. Deleted accounts and relationships are excluded. Message bodies, passwords, session tokens, and storage keys are omitted. Interview scheduling is unavailable in the current data model. Read-only; no CSRF header required. Each view, including failed ones, is audited as user.view; if the audit record cannot be written the request fails and no data is returned.
  *     security: [{superAdminSession: []}]
  *     parameters:
  *       - {$ref: '#/components/parameters/ManagedUserId'}
@@ -93,7 +93,7 @@
  *     ManagedUsersStatus:
  *       in: query
  *       name: status
- *       description: Account status, independent of talent profile review status. Existing accounts default to active. This module does not change account status.
+ *       description: Account status, independent of talent profile review status. Existing accounts default to active; authorized admins can suspend/reactivate them with PATCH users/{id}/status.
  *       schema: {type: string, enum: [active, suspended]}
  *     ManagedUsersSort:
  *       in: query
@@ -179,6 +179,10 @@
  *             avatar: {type: [string, 'null']}
  *             joined_at: {type: string, format: date-time}
  *             last_activity_at: {type: [string, 'null'], format: date-time}
+ *             suspension_reason: {type: [string, 'null'], enum: [POLICY_VIOLATION, FRAUDULENT_PROFILE, USER_REQUEST, OTHER, null]}
+ *             suspension_note: {type: [string, 'null']}
+ *             suspended_at: {type: [string, 'null'], format: date-time}
+ *             suspended_by: {type: [string, 'null'], format: uuid}
  *             profile_completed: {type: boolean}
  *             is_email_verified: {type: [boolean, 'null']}
  *             provider: {type: string, enum: [local, google, linkedin]}

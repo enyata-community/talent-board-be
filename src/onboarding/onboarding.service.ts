@@ -20,6 +20,7 @@ import {
 } from "@src/interfaces";
 
 import { SkillsService } from "@src/skills/skills.service";
+import { assertAccountAccess } from "../auth/accountAccess";
 
 export class OnboardingService {
   private skillsService = new SkillsService();
@@ -30,7 +31,7 @@ export class OnboardingService {
     role: UserRole,
   ): Promise<UserEntity> {
     const manager = AppDataSource.manager;
-    const user = await manager.findOne(UserEntity, {
+    let user = await manager.findOne(UserEntity, {
       where: { id: userId },
     });
 
@@ -56,6 +57,16 @@ export class OnboardingService {
 
     // Use transaction to ensure atomicity
     return await manager.transaction(async (transactionalEntityManager) => {
+      const current = await transactionalEntityManager.findOne(UserEntity, {
+        where: { id: userId },
+        lock: { mode: "pessimistic_write" },
+      });
+      assertAccountAccess(current);
+      if (current.profile_completed)
+        throw new ConflictError("Onboarding already completed");
+      current.first_name = user.first_name;
+      current.last_name = user.last_name;
+      user = current;
       user.state = payload.state;
       user.country = payload.country;
       user.linkedin_profile = payload.linkedin_profile;

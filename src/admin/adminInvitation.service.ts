@@ -18,8 +18,8 @@ import { AdminInvitation } from "../entities/adminInvitation.entity";
 import { AppError } from "../exceptions/appError";
 import { EmailService } from "../utils/email";
 import { adminConfig } from "./admin.config";
-import { audit, AuditContext } from "./adminAudit.service";
-import { digest, secret } from "./admin.utils";
+import { audit, AuditContext, withFailureAudit } from "./adminAudit.service";
+import { digest, roleError, secret } from "./admin.utils";
 
 export class AdminInvitationService {
   private async createInvitation(
@@ -127,65 +127,82 @@ export class AdminInvitationService {
     context: AuditContext,
     names?: IdentityNames,
   ) {
-    this.requireSuperAdmin(context);
-    adminConfig();
-    const result = await AppDataSource.transaction(async (tx) => {
-      const account = await createAdminIdentity(
-        tx,
-        email,
-        AdminRole.ADMIN,
-        displayName,
-        names,
-      );
-      const invitation = await this.createInvitation(
-        tx,
-        account,
-        context.actor,
-      );
-      await audit(
-        tx,
-        "admin.invitation.create",
-        "success",
-        context,
-        invitation.invitation.id,
-      );
-      return invitation;
-    });
+    const result = await withFailureAudit(
+      "admin.invitation.create",
+      context,
+      undefined,
+      () => {
+        this.requireSuperAdmin(context);
+        adminConfig();
+        return AppDataSource.transaction(async (tx) => {
+          const account = await createAdminIdentity(
+            tx,
+            email,
+            AdminRole.ADMIN,
+            displayName,
+            names,
+          );
+          const invitation = await this.createInvitation(
+            tx,
+            account,
+            context.actor,
+          );
+          await audit(
+            tx,
+            "admin.invitation.create",
+            "success",
+            context,
+            invitation.invitation.id,
+          );
+          return invitation;
+        });
+      },
+      { email },
+    );
     return this.deliver(result);
   }
 
   async change(id: string, resend: boolean, context: AuditContext) {
-    this.requireSuperAdmin(context);
-    if (resend) adminConfig();
-    const result = await AppDataSource.transaction(async (tx) => {
-      const invitation = await tx.findOne(AdminInvitation, {
-        where: { id },
-        lock: { mode: "pessimistic_write" },
-      });
-      if (!invitation) throw new AppError("Invitation not found", 404);
-      const account = await findAdminAccount(
-        tx,
-        invitation.admin_account_id,
-        true,
-      );
-      if (!account || account.role !== AdminRole.ADMIN)
-        throw new AppError("Invitation cannot be managed here", 403);
-      if (
-        invitation.accepted_at ||
-        invitation.revoked_at ||
-        account.status !== AdminStatus.PENDING
-      )
-        throw new AppError("Invitation is no longer pending", 409);
-      await tx.update(AdminInvitation, { id }, { revoked_at: new Date() });
-      await audit(
-        tx,
-        resend ? "admin.invitation.resend" : "admin.invitation.revoke",
-        "success",
-        context,
-        id,
-      );
-      return resend ? this.createInvitation(tx, account, context.actor) : null;
-    });
+    const result = await withFailureAudit(
+      resend ? "admin.invitation.resend" : "admin.invitation.revoke",
+      context,
+      id,
+      () => {
+        this.requireSuperAdmin(context);
+        if (resend) adminConfig();
+        return AppDataSource.transaction(async (tx) => {
+          const invitation = await tx.findOne(AdminInvitation, {
+            where: { id },
+            lock: { mode: "pessimistic_write" },
+          });
+          if (!invitation) throw new AppError("Invitation not found", 404);
+          const account = await findAdminAccount(
+            tx,
+            invitation.admin_account_id,
+            true,
+          );
+          if (!account || account.role !== AdminRole.ADMIN)
+            throw new AppError("Invitation cannot be managed here", 403);
+          if (
+            invitation.accepted_at ||
+            invitation.revoked_at ||
+            account.status !== AdminStatus.PENDING
+          )
+            throw new AppError("Invitation is no longer pending", 409);
+          await tx.update(AdminInvitation, { id }, { revoked_at: new Date() });
+          await audit(
+            tx,
+            resend ? "admin.invitation.resend" : "admin.invitation.revoke",
+            "success",
+            context,
+            id,
+          );
+          return resend
+            ? this.createInvitation(tx, account, context.actor)
+            : null;
+        });
+      },
+    );
     return result ? this.deliver(result) : undefined;
   }
 
@@ -274,6 +291,6 @@ export class AdminInvitationService {
       context.actor?.role !== AdminRole.SUPER_ADMIN ||
       context.actor.status !== AdminStatus.ACTIVE
     )
-      throw new AppError("Super Admin required", 403);
+      throw roleError([AdminRole.SUPER_ADMIN]);
   }
 }

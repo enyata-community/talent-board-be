@@ -1,5 +1,5 @@
 import AppDataSource from "@src/datasource";
-import { UserEntity, UserRole } from "@src/entities/user.entity";
+import { UserEntity, UserRole, UserStatus } from "@src/entities/user.entity";
 import {
   MessageTemplateLibrarySummary,
   MessageTemplateSummary,
@@ -77,11 +77,11 @@ export class MessageTemplateService {
 
     const [actor, target] = await Promise.all([
       this.userRepo.findOne({
-        where: { id: userId },
+        where: { id: userId, status: UserStatus.ACTIVE },
         relations: ["talent_profile"],
       }),
       this.userRepo.findOne({
-        where: { id: query.target_user_id },
+        where: { id: query.target_user_id, status: UserStatus.ACTIVE },
       }),
     ]);
 

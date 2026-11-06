@@ -145,7 +145,8 @@ describe("ConversationService", () => {
 
       expect(mockThreadRepo.findAndCount).toHaveBeenCalledWith({
         where: {
-          recruiter: { id: recruiter.id },
+          recruiter: { id: recruiter.id, status: "active" },
+          talent: { status: "active" },
           accepted_request: { status: MessageRequestStatus.ACCEPTED },
         },
         relations: ["recruiter", "talent", "accepted_request"],

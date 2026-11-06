@@ -12,7 +12,7 @@ import { AdminSession } from "../entities/adminSession.entity";
 import { AppError } from "../exceptions/appError";
 import { adminConfig } from "./admin.config";
 import { audit, AuditContext } from "./adminAudit.service";
-import { digest, secret } from "./admin.utils";
+import { digest, secret, sessionTokenError } from "./admin.utils";
 
 // A fixed-cost dummy verification prevents the missing-account path skipping Argon2.
 let dummyHash: Promise<string> | undefined;
@@ -78,8 +78,8 @@ export class AdminAuthService {
   }
 
   async authenticate(token: string, expectedRole?: AdminRole) {
-    if (!/^[a-f0-9]{64}$/.test(token))
-      throw new AppError("Admin authentication required", 401);
+    if (!token) throw sessionTokenError(expectedRole, true);
+    if (!/^[a-f0-9]{64}$/.test(token)) throw sessionTokenError(expectedRole);
     return AppDataSource.transaction(async (tx) => {
       const session = await tx
         .getRepository(AdminSession)
@@ -95,7 +95,7 @@ export class AdminAuthService {
         session.expires_at.getTime() <= now ||
         session.idle_expires_at.getTime() <= now
       )
-        throw new AppError("Admin authentication required", 401);
+        throw sessionTokenError(expectedRole);
       const account = await findAdminAccount(tx, session.admin_account_id);
       if (
         !account ||
@@ -103,7 +103,7 @@ export class AdminAuthService {
         !isInternalRole(account.user.role) ||
         (expectedRole && account.role !== expectedRole)
       )
-        throw new AppError("Admin authentication required", 401);
+        throw sessionTokenError(expectedRole);
       await tx.update(
         AdminSession,
         { id: session.id },

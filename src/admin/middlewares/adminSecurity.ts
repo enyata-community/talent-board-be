@@ -7,7 +7,7 @@ import asyncHandler from "../../middlewares/asyncHandler";
 import { adminConfig } from "../admin.config";
 import { audit, AuditContext } from "../adminAudit.service";
 import { AdminAuthService } from "../adminAuth.service";
-import { digest, equalSecret } from "../admin.utils";
+import { csrfTokenError, digest, equalSecret, roleError } from "../admin.utils";
 
 export const context = (req: Request): AuditContext => ({
   actor: req.admin,
@@ -64,7 +64,7 @@ export const requireAdminCsrf = asyncHandler(async (req, _res, next) => {
     !equalSecret(req.get("x-admin-csrf") ?? "", req.adminSession.csrf_token)
   ) {
     await audit(AppDataSource.manager, "admin.csrf", "denied", context(req));
-    throw new AppError("Invalid CSRF token", 403);
+    throw csrfTokenError(!req.get("x-admin-csrf"));
   }
   next();
 });
@@ -76,7 +76,7 @@ export const requireSuperAdmin = asyncHandler(async (req, _res, next) => {
       "denied",
       context(req),
     );
-    throw new AppError("Super Admin required", 403);
+    throw roleError([AdminRole.SUPER_ADMIN]);
   }
   next();
 });

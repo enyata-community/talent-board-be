@@ -1,5 +1,5 @@
 import AppDataSource from "@src/datasource";
-import { UserEntity, UserRole } from "@src/entities/user.entity";
+import { UserEntity, UserRole, UserStatus } from "@src/entities/user.entity";
 import { ProfileStatus } from "@src/entities/talentProfile.entity";
 import { ForbiddenError } from "@src/exceptions/forbiddenError";
 import { NotFoundError } from "@src/exceptions/notFoundError";
@@ -18,7 +18,11 @@ export const downloadResume = asyncHandler(async (req, res) => {
   if (!isOwner && !isRecruiter)
     throw new ForbiddenError("You cannot access this résumé");
   const user = await AppDataSource.manager.findOne(UserEntity, {
-    where: { id: req.params.id, role: UserRole.TALENT },
+    where: {
+      id: req.params.id,
+      role: UserRole.TALENT,
+      status: UserStatus.ACTIVE,
+    },
     relations: ["talent_profile"],
   });
   const profile = user?.talent_profile;

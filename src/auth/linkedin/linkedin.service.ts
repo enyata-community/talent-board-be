@@ -2,6 +2,7 @@ import { UnauthorizedError } from "../../exceptions/unauthorizedError";
 import {
   UserEntity,
   UserProvider,
+  UserStatus,
   isInternalRole,
 } from "@src/entities/user.entity";
 import { getInitialIncompleteSignupReminderDate } from "@src/utils/email/incompleteSignupReminderSchedule";
@@ -23,6 +24,8 @@ export class LinkedInAuthService {
 
       if (user && isInternalRole(user.role))
         throw new UnauthorizedError("Please use the Admin Portal to log in");
+      if (user?.status === UserStatus.SUSPENDED)
+        throw new UnauthorizedError("Account access denied");
       if (!user) {
         user = tx.create(UserEntity, {
           ...profileData,
