@@ -5,8 +5,10 @@ import config from "config";
 import type { Request, Response } from "express";
 import { EntityManager } from "typeorm";
 import { signToken } from "./jwt";
+import { normalizeIp } from "./normalizeIp";
 import { sanitizeUser } from "./sanitizeUser";
 import { recordUserActivity } from "../users/userActivity";
+import { assertAccountAccess } from "../auth/accountAccess";
 
 interface CookieOptions {
   expires?: Date;
@@ -26,40 +28,59 @@ export const createSendToken = async (
   entityManager: EntityManager,
   options: CreateSendTokenOptions = { mode: "json" },
 ) => {
-  const accessToken = signToken(user.id, "ACCESS_TOKEN_PRIVATE_KEY", {
-    expiresIn: config.get<string>("ACCESS_TOKEN_TTL"),
-  });
+  // Serialize issuance with suspension, so a stale login/OAuth response cannot
+  // create a usable session after the account is suspended.
+  const { accessToken, refreshToken } = await entityManager.transaction(
+    async (tx) => {
+      const current = await tx.findOne(UserEntity, {
+        where: { id: user.id },
+        lock: { mode: "pessimistic_write" },
+      });
+      assertAccountAccess(current, user.session_version ?? 0);
+      const accessToken = signToken(
+        user.id,
+        "ACCESS_TOKEN_PRIVATE_KEY",
+        {
+          expiresIn: config.get<string>("ACCESS_TOKEN_TTL"),
+        },
+        current.session_version ?? 0,
+      );
 
-  const refreshToken = signToken(user.id, "REFRESH_TOKEN_PRIVATE_KEY", {
-    expiresIn: config.get<string>("REFRESH_TOKEN_TTL"),
-  });
+      const refreshToken = signToken(
+        user.id,
+        "REFRESH_TOKEN_PRIVATE_KEY",
+        {
+          expiresIn: config.get<string>("REFRESH_TOKEN_TTL"),
+        },
+        current.session_version ?? 0,
+      );
 
-  const ipAddress =
-    req.headers["x-forwarded-for"]?.toString().split(",")[0] ||
-    req.socket.remoteAddress ||
-    "unknown";
-  const userAgent = req.headers["user-agent"] || "unknown";
+      const ipAddress = normalizeIp(req.ip) || "unknown";
+      const userAgent = req.headers["user-agent"] || "unknown";
 
-  await entityManager.update(
-    RefreshToken,
-    {
-      user: { id: user.id },
-      ip_address: ipAddress,
-      user_agent: userAgent,
-      is_valid: true,
+      await tx.update(
+        RefreshToken,
+        {
+          user: { id: user.id },
+          ip_address: ipAddress,
+          user_agent: userAgent,
+          is_valid: true,
+        },
+        { is_valid: false },
+      );
+
+      const refresh = tx.create(RefreshToken, {
+        token: refreshToken,
+        user,
+        is_valid: true,
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      });
+
+      await tx.save(refresh);
+      return { accessToken, refreshToken };
     },
-    { is_valid: false },
   );
-
-  const refresh = entityManager.create(RefreshToken, {
-    token: refreshToken,
-    user,
-    is_valid: true,
-    ip_address: ipAddress,
-    user_agent: userAgent,
-  });
-
-  await entityManager.save(refresh);
   await recordUserActivity(user, entityManager);
 
   let cookieExpiresDays: string | number;

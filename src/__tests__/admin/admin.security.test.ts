@@ -3,7 +3,15 @@ import { identityNames } from "../../admin/adminIdentity.service";
 import { signupSchema } from "../../auth/local/schemas/signup.schema";
 import { assertLocalSeedTarget } from "../../admin/localSuperAdmin.service";
 import { adminConfig } from "../../admin/admin.config";
-import { digest, equalSecret, secret, adminDto } from "../../admin/admin.utils";
+import {
+  digest,
+  equalSecret,
+  secret,
+  adminDto,
+  sessionTokenError,
+  csrfTokenError,
+  roleError,
+} from "../../admin/admin.utils";
 import {
   invitationSchema,
   loginSchema,
@@ -21,6 +29,27 @@ jest.mock("../../utils/logger", () => ({
 }));
 
 describe("Admin security contracts", () => {
+  it("names the missing or invalid credential in auth errors", () => {
+    expect(sessionTokenError(AdminRole.ADMIN, true)).toMatchObject({
+      statusCode: 401,
+      message: "Missing admin session token. Please log in.",
+    });
+    expect(sessionTokenError(AdminRole.SUPER_ADMIN)).toMatchObject({
+      statusCode: 401,
+      message: "Invalid super admin session token! Please log in again.",
+    });
+    expect(csrfTokenError(true).message).toMatch(
+      /^Missing CSRF token.*x-admin-csrf/,
+    );
+    expect(csrfTokenError(false)).toMatchObject({
+      statusCode: 403,
+      message: expect.stringMatching(/^Invalid CSRF token!.*x-admin-csrf/),
+    });
+    expect(roleError([AdminRole.ADMIN, AdminRole.SUPER_ADMIN])).toMatchObject({
+      statusCode: 403,
+      message: "Access denied. Requires role: admin, super_admin",
+    });
+  });
   it("isolates cookie names and paths by realm", () => {
     const admin = adminConfig(AdminRole.ADMIN);
     const root = adminConfig(AdminRole.SUPER_ADMIN);

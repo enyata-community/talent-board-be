@@ -2,7 +2,7 @@ import { resumeDownloadUrl } from "@src/files/fileUrls";
 import { MetricsEntity } from "@src/entities/metrics.entity";
 import { SavedTalentEntity } from "@src/entities/savedTalent.entity";
 import { TalentProfileEntity } from "@src/entities/talentProfile.entity";
-import { UserEntity } from "@src/entities/user.entity";
+import { UserEntity, UserStatus } from "@src/entities/user.entity";
 import { CursorPayload, TalentSearchResult } from "@src/interfaces";
 import { resolveAssetUrl } from "@src/utils/resolveAssetUrl";
 import { Brackets, SelectQueryBuilder } from "typeorm";
@@ -146,6 +146,9 @@ export const buildTalentQuery = (
       .andWhere("talent.profile_status = 'approved'");
   }
 
+  qb.andWhere("user.status = :activeStatus", {
+    activeStatus: UserStatus.ACTIVE,
+  });
   applyTalentFilters(qb, query);
 
   if (query.cursor) {

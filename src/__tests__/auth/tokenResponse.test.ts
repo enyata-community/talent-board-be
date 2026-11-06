@@ -9,10 +9,16 @@ test("session responses keep refresh tokens exclusively in HttpOnly cookies", as
     key === "ACCESS_TOKEN_PRIVATE_KEY" ? "access" : "refresh",
   );
   const manager: any = {
+    findOne: jest.fn().mockResolvedValue({
+      id: "user",
+      email: "a@example.com",
+      session_version: 0,
+    }),
     update: jest.fn(),
     create: jest.fn((_entity, data) => data),
     save: jest.fn(),
   };
+  manager.transaction = (cb: any) => cb(manager);
   const res: any = {
     cookie: jest.fn(),
     status: jest.fn().mockReturnThis(),

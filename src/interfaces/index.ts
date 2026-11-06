@@ -11,6 +11,7 @@ export interface IResponseError {
 }
 
 export interface CustomJwtPayload extends JwtPayload {
+  session_version?: number;
   id: string;
   role: UserRole;
 }

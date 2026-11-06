@@ -22,7 +22,7 @@ describe("JWT Utility Functions", () => {
       const token = signToken(mockId, mockKeyName);
 
       expect(jwt.sign).toHaveBeenCalledWith(
-        { id: mockId },
+        { id: mockId, session_version: 0 },
         expect.any(String),
         { algorithm: "RS256", jwtid: expect.any(String) },
       );

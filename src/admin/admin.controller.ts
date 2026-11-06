@@ -8,9 +8,10 @@ import { AdminRole } from "../entities/adminAccount.entity";
 import { adminConfig } from "./admin.config";
 import { AdminAuthService } from "./adminAuth.service";
 import { AdminInvitationService } from "./adminInvitation.service";
-import { adminDto, equalSecret } from "./admin.utils";
+import { adminDto, csrfTokenError, equalSecret } from "./admin.utils";
 import { audit } from "./adminAudit.service";
 import { context } from "./middlewares/adminSecurity";
+import { normalizeIp } from "../utils/normalizeIp";
 import { auditListSchema, listSchema } from "./schemas/admin.schema";
 const auth = new AdminAuthService();
 const invitations = new AdminInvitationService();
@@ -66,7 +67,7 @@ export const logout = asyncHandler(async (req, res) => {
           ...context(req),
           actor: result.account,
         });
-        throw new AppError("Invalid CSRF token", 403);
+        throw csrfTokenError(!req.get("x-admin-csrf"));
       }
       await auth.logout(result.session, {
         ...context(req),
@@ -137,8 +138,25 @@ export const listAudit = asyncHandler(async (req, res) => {
     .skip((query.page - 1) * query.limit)
     .take(query.limit)
     .getManyAndCount();
+  await audit(
+    AppDataSource.manager,
+    "admin.audit_log.view",
+    "success",
+    context(req),
+    undefined,
+    { filters: query },
+  );
+  // Rows written before IP normalization are immutable, so clean them on read.
   res.json({
     status: "success",
-    data: { items, total, page: query.page, limit: query.limit },
+    data: {
+      items: items.map((item) => ({
+        ...item,
+        ip_address: normalizeIp(item.ip_address ?? undefined) ?? null,
+      })),
+      total,
+      page: query.page,
+      limit: query.limit,
+    },
   });
 });

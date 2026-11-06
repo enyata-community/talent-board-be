@@ -5,6 +5,8 @@ export default {
   SENTRY_PROFILING_ENABLED:
     String(process.env.TALENTS_SENTRY_PROFILING_ENABLED) === "true",
   PORT: Number(process.env.TALENTS_PORT || process.env.PORT) || 8000,
+  // Express "trust proxy": false, true, a hop count, or comma-separated addresses/subnets.
+  TRUST_PROXY: process.env.TALENTS_TRUST_PROXY || "false",
   NODE_ENV:
     process.env.TALENTS_NODE_ENV || process.env.NODE_ENV || "development",
   API_PREFIX: process.env.TALENTS_API_PREFIX ?? "api/v1",

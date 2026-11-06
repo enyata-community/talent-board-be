@@ -4,6 +4,7 @@ import { PasswordResetTokenEntity } from "@src/entities/passwordResetToken.entit
 import {
   UserEntity,
   UserProvider,
+  UserStatus,
   isInternalRole,
 } from "@src/entities/user.entity";
 import { ClientError } from "@src/exceptions/clientError";
@@ -84,7 +85,7 @@ export class LocalAuthService {
       ? config.get<number>("OTP_TTL_MINUTES")
       : 10, // OTP validity duration
   ): Promise<void> {
-    if (isInternalRole(user.role))
+    if (isInternalRole(user.role) || user.status === UserStatus.SUSPENDED)
       throw new UnauthorizedError("Invalid account");
     // Invalidate any existing unused OTPs for this email to ensure only the latest one is valid
     await entityManager.update(
@@ -134,12 +135,16 @@ export class LocalAuthService {
         return null;
       }
 
-      const user = await tx.findOne(UserEntity, { where: { email } });
+      const user = await tx.findOne(UserEntity, {
+        where: { email },
+        lock: { mode: "pessimistic_write" },
+      });
 
       // Only allow verification for LOCAL users
       if (
         !user ||
         isInternalRole(user.role) ||
+        user.status === UserStatus.SUSPENDED ||
         user.provider !== UserProvider.LOCAL
       )
         return null;
@@ -170,6 +175,9 @@ export class LocalAuthService {
         "is_email_verified",
         "role",
         "profile_completed",
+        "status",
+        "session_version",
+        "last_activity_at",
       ],
     });
 
@@ -179,6 +187,7 @@ export class LocalAuthService {
     if (
       !user ||
       isInternalRole(user.role) ||
+      user.status === UserStatus.SUSPENDED ||
       user.provider !== UserProvider.LOCAL
     ) {
       throw new UnauthorizedError("Invalid email or password");
@@ -206,7 +215,11 @@ export class LocalAuthService {
       : 60;
     const user = await entityManager.findOne(UserEntity, { where: { email } });
 
-    if (!user || isInternalRole(user.role))
+    if (
+      !user ||
+      isInternalRole(user.role) ||
+      user.status === UserStatus.SUSPENDED
+    )
       throw new NotFoundError("User not found");
     if (user.is_email_verified)
       throw new ClientError("Email is already verified");
@@ -247,7 +260,11 @@ export class LocalAuthService {
   ): Promise<void> {
     const user = await entityManager.findOne(UserEntity, { where: { email } });
 
-    if (!user || isInternalRole(user.role))
+    if (
+      !user ||
+      isInternalRole(user.role) ||
+      user.status === UserStatus.SUSPENDED
+    )
       throw new NotFoundError("User not found");
 
     // Only local users can reset their password via email
@@ -363,7 +380,11 @@ export class LocalAuthService {
       }
 
       const user = await tx.findOne(UserEntity, { where: { email } });
-      if (!user || isInternalRole(user.role))
+      if (
+        !user ||
+        isInternalRole(user.role) ||
+        user.status === UserStatus.SUSPENDED
+      )
         throw new NotFoundError("User not found");
 
       // Hash the new password and update the user's password in the database. Also mark the token as used by setting used_at to the current timestamp.

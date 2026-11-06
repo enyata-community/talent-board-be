@@ -1,5 +1,5 @@
 import { EntityManager, In, IsNull, LessThan, Or } from "typeorm";
-import { UserEntity, UserRole } from "../entities/user.entity";
+import { UserEntity, UserRole, UserStatus } from "../entities/user.entity";
 import logger from "../utils/logger";
 
 export const ACTIVITY_UPDATE_INTERVAL_MS = 5 * 60 * 1000;
@@ -22,6 +22,7 @@ export const recordUserActivity = async (
       {
         id: user.id,
         role: In([UserRole.TALENT, UserRole.RECRUITER]),
+        status: UserStatus.ACTIVE,
         deleted_at: IsNull(),
         last_activity_at: Or(IsNull(), LessThan(cutoff)),
       },

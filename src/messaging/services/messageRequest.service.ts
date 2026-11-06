@@ -9,7 +9,7 @@ import {
   ProfileStatus,
   TalentProfileEntity,
 } from "@src/entities/talentProfile.entity";
-import { UserEntity, UserRole } from "@src/entities/user.entity";
+import { UserEntity, UserRole, UserStatus } from "@src/entities/user.entity";
 import { ClientError } from "@src/exceptions/clientError";
 import { ConflictError } from "@src/exceptions/conflictError";
 import { NotFoundError } from "@src/exceptions/notFoundError";
@@ -51,12 +51,17 @@ export class MessageRequestService {
 
     const [recruiter, talent] = await Promise.all([
       this.userRepo.findOne({
-        where: { id: recruiterId, role: UserRole.RECRUITER },
+        where: {
+          id: recruiterId,
+          role: UserRole.RECRUITER,
+          status: UserStatus.ACTIVE,
+        },
       }),
       this.userRepo.findOne({
         where: {
           id: talentId,
           role: UserRole.TALENT,
+          status: UserStatus.ACTIVE,
           profile_completed: true,
         },
         relations: ["talent_profile"],
@@ -212,7 +217,8 @@ export class MessageRequestService {
 
     const [requests, total] = await this.requestRepo.findAndCount({
       where: {
-        talent: { id: talentId },
+        talent: { id: talentId, status: UserStatus.ACTIVE },
+        recruiter: { status: UserStatus.ACTIVE },
         ...(query.status ? { status: query.status } : {}),
       },
       relations: ["recruiter", "talent"],
@@ -244,7 +250,8 @@ export class MessageRequestService {
 
     const [requests, total] = await this.requestRepo.findAndCount({
       where: {
-        recruiter: { id: recruiterId },
+        recruiter: { id: recruiterId, status: UserStatus.ACTIVE },
+        talent: { status: UserStatus.ACTIVE },
         ...(query.status ? { status: query.status } : {}),
       },
       relations: ["recruiter", "talent"],
@@ -326,7 +333,12 @@ export class MessageRequestService {
     request: MessageRequestEntity | null,
     talentId: string,
   ): asserts request is MessageRequestEntity {
-    if (!request || request.talent.id !== talentId) {
+    if (
+      !request ||
+      request.talent.id !== talentId ||
+      request.recruiter.status === UserStatus.SUSPENDED ||
+      request.talent.status === UserStatus.SUSPENDED
+    ) {
       throw new NotFoundError("Message request not found");
     }
 
@@ -365,6 +377,7 @@ export class MessageRequestService {
   } {
     return Boolean(
       user?.role === UserRole.TALENT &&
+        user.status !== UserStatus.SUSPENDED &&
         user.profile_completed &&
         user.talent_profile?.profile_status === ProfileStatus.APPROVED,
     );

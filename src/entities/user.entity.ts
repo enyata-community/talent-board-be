@@ -37,6 +37,13 @@ export enum UserStatus {
   SUSPENDED = "suspended",
 }
 
+export enum SuspensionReason {
+  POLICY_VIOLATION = "POLICY_VIOLATION",
+  FRAUDULENT_PROFILE = "FRAUDULENT_PROFILE",
+  USER_REQUEST = "USER_REQUEST",
+  OTHER = "OTHER",
+}
+
 export const isInternalRole = (role: UserRole | null | undefined) =>
   role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN;
 
@@ -91,6 +98,23 @@ export class UserEntity extends ExtendedBaseEntity {
   @Column({ type: "enum", enum: UserStatus, default: UserStatus.ACTIVE })
   @IsEnum(UserStatus)
   status: UserStatus = UserStatus.ACTIVE;
+
+  @Column({ type: "varchar", nullable: true })
+  @IsOptional()
+  @IsEnum(SuspensionReason)
+  suspension_reason: SuspensionReason | null;
+
+  @Column({ type: "varchar", length: 1000, nullable: true })
+  suspension_note: string | null;
+
+  @Column({ type: "timestamptz", nullable: true })
+  suspended_at: Date | null;
+
+  @Column({ type: "uuid", nullable: true })
+  suspended_by: string | null;
+
+  @Column({ type: "integer", default: 0 })
+  session_version: number = 0;
 
   @Column({ type: "timestamptz", nullable: true })
   last_activity_at: Date | null;

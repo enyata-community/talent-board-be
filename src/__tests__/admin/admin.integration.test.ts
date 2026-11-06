@@ -332,6 +332,15 @@ describe("Admin Portal PostgreSQL integration", () => {
       invitations.invite(publicUser.email, undefined, { actor: root }),
     ).rejects.toMatchObject({ statusCode: 409 });
     expect(
+      await ds.getRepository(AdminAuditLog).findOneByOrFail({
+        action: "admin.invitation.create",
+        outcome: "failure",
+        actor_id: root.id,
+      }),
+    ).toMatchObject({
+      metadata: { email: publicUser.email, status_code: 409 },
+    });
+    expect(
       (await ds.manager.findOneByOrFail(UserEntity, { id: publicUser.id }))
         .role,
     ).toBe(UserRole.TALENT);
@@ -396,6 +405,15 @@ describe("Admin Portal PostgreSQL integration", () => {
     await expect(
       invitations.invite("forbidden@example.com", undefined, { actor: staff }),
     ).rejects.toMatchObject({ statusCode: 403 });
+    expect(
+      await ds.getRepository(AdminAuditLog).findOneByOrFail({
+        action: "admin.invitation.create",
+        outcome: "denied",
+        actor_id: staff.id,
+      }),
+    ).toMatchObject({
+      metadata: { email: "forbidden@example.com", status_code: 403 },
+    });
     const next = jest.fn();
     await requireSuperAdmin({ admin: staff } as any, {} as any, next);
     expect(next.mock.calls[0][0].statusCode).toBe(403);
@@ -551,6 +569,19 @@ describe("Admin Portal PostgreSQL integration", () => {
       expect(
         (await request("/invitations?limit=101", undefined, headers)).status,
       ).toBe(422);
+      expect(
+        (await request("/audit-logs?outcome=denied", undefined, headers))
+          .status,
+      ).toBe(200);
+      expect(
+        await ds.getRepository(AdminAuditLog).findOneByOrFail({
+          action: "admin.audit_log.view",
+        }),
+      ).toMatchObject({
+        outcome: "success",
+        actor_role: "super_admin",
+        metadata: { filters: { outcome: "denied" } },
+      });
       const secondLogin = await request("/auth/login", {
         email: "root@example.com",
         password: "unique long password",

@@ -5,7 +5,7 @@ import { MetricsEntity } from "@src/entities/metrics.entity";
 import { NotificationEntity } from "@src/entities/notification.entity";
 import { SavedTalentEntity } from "@src/entities/savedTalent.entity";
 import { TalentProfileEntity } from "@src/entities/talentProfile.entity";
-import { UserEntity, UserRole } from "@src/entities/user.entity";
+import { UserEntity, UserRole, UserStatus } from "@src/entities/user.entity";
 import { NotFoundError } from "@src/exceptions/notFoundError";
 import { TalentRecommendationService } from "@src/talents/services/talentRecommendation.service";
 import { formatTalentResult } from "@src/talents/utils/talent.utils";
@@ -87,7 +87,10 @@ export class DashboardService {
 
     const [savedTalentsRaw, recommendedProfiles] = await Promise.all([
       this.savedTalentRepository.find({
-        where: { recruiter: { id: userId } },
+        where: {
+          recruiter: { id: userId, status: UserStatus.ACTIVE },
+          talent: { status: UserStatus.ACTIVE },
+        },
         order: { saved_at: "DESC" },
         take: 4,
         relations: [
@@ -137,7 +140,10 @@ export class DashboardService {
 
   async getUserNotifications(userId: string, limit = 20) {
     const notifications = await this.notificationRepository.find({
-      where: { recipient: { id: userId } },
+      where: {
+        recipient: { id: userId },
+        sender: { status: UserStatus.ACTIVE },
+      },
       order: { created_at: "DESC" },
       take: limit,
       relations: ["sender", "sender.recruiter_profile"],
@@ -195,7 +201,11 @@ export class DashboardService {
   async getNotificationSummary(userId: string, role: UserRole) {
     const [unread_count, unread_message_count] = await Promise.all([
       this.notificationRepository.count({
-        where: { recipient: { id: userId }, read: false },
+        where: {
+          recipient: { id: userId },
+          read: false,
+          sender: { status: UserStatus.ACTIVE },
+        },
       }),
       this.getUnreadMessageCount(userId, role),
     ]);
@@ -213,6 +223,15 @@ export class DashboardService {
     const qb = this.threadRepository
       .createQueryBuilder("thread")
       .leftJoin("thread.accepted_request", "accepted_request")
+      .innerJoin(
+        "thread.recruiter",
+        "recruiter",
+        "recruiter.status = :active",
+        { active: UserStatus.ACTIVE },
+      )
+      .innerJoin("thread.talent", "talent", "talent.status = :active", {
+        active: UserStatus.ACTIVE,
+      })
       .where("accepted_request.status = :status", {
         status: MessageRequestStatus.ACCEPTED,
       })

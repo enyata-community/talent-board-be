@@ -2,7 +2,7 @@ import AppDataSource from "@src/datasource";
 import { ConversationThreadEntity } from "@src/entities/conversationThread.entity";
 import { MessageEntity } from "@src/entities/message.entity";
 import { MessageRequestStatus } from "@src/entities/messageRequest.entity";
-import { UserEntity, UserRole } from "@src/entities/user.entity";
+import { UserEntity, UserRole, UserStatus } from "@src/entities/user.entity";
 import { ConflictError } from "@src/exceptions/conflictError";
 import { NotFoundError } from "@src/exceptions/notFoundError";
 import {
@@ -41,9 +41,14 @@ export class ConversationService {
 
     const [threads, total] = await this.threadRepo.findAndCount({
       where: {
-        ...(role === UserRole.RECRUITER
-          ? { recruiter: { id: userId } }
-          : { talent: { id: userId } }),
+        recruiter: {
+          status: UserStatus.ACTIVE,
+          ...(role === UserRole.RECRUITER ? { id: userId } : {}),
+        },
+        talent: {
+          status: UserStatus.ACTIVE,
+          ...(role === UserRole.TALENT ? { id: userId } : {}),
+        },
         accepted_request: { status: MessageRequestStatus.ACCEPTED },
       },
       relations: ["recruiter", "talent", "accepted_request"],
@@ -189,11 +194,19 @@ export class ConversationService {
     return thread;
   }
 
+  // This method asserts that the given thread is accessible
+  //  by the user and is active (i.e., has an accepted request).
+  // If not, it throws a NotFoundError or ConflictError.
   private assertThreadIsAccessibleAndActive(
     thread: ConversationThreadEntity | null,
     userId: string,
   ): asserts thread is ConversationThreadEntity {
-    if (!thread || !this.isParticipant(thread, userId)) {
+    if (
+      !thread ||
+      !this.isParticipant(thread, userId) ||
+      thread.recruiter.status === UserStatus.SUSPENDED ||
+      thread.talent.status === UserStatus.SUSPENDED
+    ) {
       throw new NotFoundError("Conversation thread not found");
     }
 

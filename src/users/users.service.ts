@@ -4,6 +4,7 @@ import { NotFoundError } from "@src/exceptions/notFoundError";
 import { resolveAssetUrl } from "@src/utils/resolveAssetUrl";
 import { sanitizeUser } from "@src/utils/sanitizeUser";
 import { UpdateProfileDTO } from "./schemas/updateProfile.schema";
+import { assertAccountAccess } from "../auth/accountAccess";
 
 export class UserService {
   private userRepo = AppDataSource.getRepository(UserEntity);
@@ -27,6 +28,12 @@ export class UserService {
     const manager = AppDataSource.manager;
 
     return manager.transaction(async (tx) => {
+      const current = await tx.findOne(UserEntity, {
+        where: { id: userId },
+        lock: { mode: "pessimistic_write" },
+      });
+      if (!current) throw new NotFoundError("User not found");
+      assertAccountAccess(current);
       const user = await tx.findOne(UserEntity, {
         where: { id: userId },
         relations: ["talent_profile", "recruiter_profile"],
