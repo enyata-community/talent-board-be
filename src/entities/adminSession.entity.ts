@@ -29,4 +29,8 @@ export class AdminSession {
   @Column({ type: "timestamptz" })
   expires_at: Date;
   @Column({ type: "timestamptz", nullable: true }) revoked_at: Date | null;
+
+  // Set at login and by re-entering the password; gates sensitive actions.
+  @Column({ type: "timestamptz", nullable: true })
+  reauthenticated_at: Date | null;
 }

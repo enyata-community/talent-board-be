@@ -6,19 +6,25 @@ import {
   authenticateAdmin,
   checkAdminOrigin,
   requireAdminCsrf,
+  requireRecentAuth,
   requireSuperAdmin,
   throttleAdmin,
 } from "./middlewares/adminSecurity";
 import {
+  adminAccountsSchema,
+  adminRoleSchema,
+  adminStatusSchema,
   auditListSchema,
   idSchema,
   invitationSchema,
   listSchema,
   loginSchema,
+  reauthenticateSchema,
   setupSchema,
 } from "./schemas/admin.schema";
 import * as controller from "./admin.controller";
 import * as usersController from "./adminUsers.controller";
+import * as accountsController from "./adminAccounts.controller";
 import {
   adminUsersSchema,
   userStatusSchema,
@@ -48,6 +54,13 @@ export const createAdminRouter = (role: AdminRole) => {
   router.post("/auth/logout", controller.logout);
   router.use(authenticateAdmin);
   router.get("/auth/me", controller.me);
+  router.post(
+    "/auth/reauthenticate",
+    requireAdminCsrf,
+    throttleAdmin("reauth", 10),
+    validateData(reauthenticateSchema),
+    controller.reauthenticate,
+  );
   router.patch(
     "/users/:id/status",
     requireAdminCsrf,
@@ -80,6 +93,7 @@ export const createAdminRouter = (role: AdminRole) => {
     router.post(
       "/invitations",
       requireAdminCsrf,
+      requireRecentAuth,
       throttleAdmin("invite", 20),
       validateData(invitationSchema),
       controller.invite,
@@ -96,6 +110,27 @@ export const createAdminRouter = (role: AdminRole) => {
       requireAdminCsrf,
       validateData(idSchema, ["params"]),
       controller.revoke,
+    );
+    router.get(
+      "/admins",
+      validateData(adminAccountsSchema, ["query"]),
+      accountsController.listAdmins,
+    );
+    router.patch(
+      "/admins/:id/role",
+      requireAdminCsrf,
+      requireRecentAuth,
+      validateData(idSchema, ["params"]),
+      validateData(adminRoleSchema),
+      accountsController.changeAdminRole,
+    );
+    router.patch(
+      "/admins/:id/status",
+      requireAdminCsrf,
+      requireRecentAuth,
+      validateData(idSchema, ["params"]),
+      validateData(adminStatusSchema),
+      accountsController.changeAdminStatus,
     );
     router.get(
       "/audit-logs",

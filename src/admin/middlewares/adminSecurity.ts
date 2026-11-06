@@ -80,6 +80,17 @@ export const requireSuperAdmin = asyncHandler(async (req, _res, next) => {
   }
   next();
 });
+export const requireRecentAuth = asyncHandler(async (req, _res, next) => {
+  const at = req.adminSession?.reauthenticated_at;
+  if (!at || Date.now() - at.getTime() > adminConfig().stepUpMs) {
+    await audit(AppDataSource.manager, "admin.step_up", "denied", context(req));
+    throw new AppError(
+      "Recent authentication required. Confirm your password with auth/reauthenticate and retry.",
+      403,
+    );
+  }
+  next();
+});
 export const throttleAdmin = (scope: string, limit: number, byEmail = false) =>
   asyncHandler(async (req, res, next) => {
     // Fixed windows are bounded by server time; upsert increments are atomic across instances.

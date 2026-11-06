@@ -21,7 +21,7 @@
  *       '422':
  *         description: Request validation failed
  *       '429':
- *         description: Too many attempts; see Retry-After header
+ *         description: 'Too many attempts. After 5 failed logins for an email (whether or not an account exists), login is locked for 15 minutes with the message "Too many failed attempts. Try again in N minutes." Separately, 10 requests per IP per 15 minutes; see Retry-After header.'
  *     parameters: []
  *     requestBody:
  *       required: true
@@ -51,7 +51,7 @@
  *       '422':
  *         description: Request validation failed
  *       '429':
- *         description: Too many attempts; see Retry-After header
+ *         description: 'Too many attempts. After 5 failed logins for an email (whether or not an account exists), login is locked for 15 minutes with the message "Too many failed attempts. Try again in N minutes." Separately, 10 requests per IP per 15 minutes; see Retry-After header.'
  *     parameters: []
  *     requestBody:
  *       required: true
@@ -238,7 +238,7 @@
  *   post:
  *     tags:
  *       - Super Admin
- *     summary: Invite an Admin (Super Admin only)
+ *     summary: Invite an Admin or Super Admin (Super Admin only)
  *     security:
  *       - superAdminSession: []
  *     responses:
@@ -266,8 +266,8 @@
  *     requestBody:
  *       required: true
  *       content:
- *         application/json: {schema: {type: object, additionalProperties: false, required: [email], properties: {email: {type: string, format: email}, display_name: {type: string, maxLength: 100, deprecated: true, description: 'Optional compatibility input, stored as first_name/last_name. Prefer explicit name fields.'}, first_name: {type: string, minLength: 1, maxLength: 50}, last_name: {type: string, minLength: 1, maxLength: 50}}}}
- *     description: Browsers set Origin automatically. For Postman/curl, send the configured portal origin.
+ *         application/json: {schema: {type: object, additionalProperties: false, required: [email], properties: {email: {type: string, format: email}, display_name: {type: string, maxLength: 100, deprecated: true, description: 'Optional compatibility input, stored as first_name/last_name. Prefer explicit name fields.'}, first_name: {type: string, minLength: 1, maxLength: 50}, last_name: {type: string, minLength: 1, maxLength: 50}, role: {type: string, enum: [admin, super_admin], default: admin, description: 'super_admin needs a free slot (maximum 2, pending invitations included). Super Admin invitees complete setup at /superadmin/auth/setup-password.'}}}, examples: {admin: {summary: Invite an Admin, value: {email: admin@example.com, first_name: Ada, last_name: Obi, role: admin}}, super_admin: {summary: Invite a Super Admin, value: {email: root2@example.com, first_name: Tunde, last_name: Bello, role: super_admin}}}}
+ *     description: Email must not belong to any existing account (talent, recruiter, admin, or super admin). Requires recent authentication (see auth/reauthenticate). Every attempt, including failures, is audited as admin.invitation.create. Browsers set Origin automatically. For Postman/curl, send the configured portal origin.
  *   get:
  *     tags:
  *       - Super Admin
@@ -331,7 +331,7 @@
  *         name: id
  *         required: true
  *         schema: {type: string, format: uuid}
- *     description: Browsers set Origin automatically. For Postman/curl, send the configured portal origin.
+ *     description: Rotates the secret and revokes the previous link. Resending a Super Admin invitation re-checks the two-slot limit. Browsers set Origin automatically. For Postman/curl, send the configured portal origin.
  * /api/v1/superadmin/invitations/{id}:
  *   delete:
  *     tags:

@@ -28,22 +28,26 @@ install audit immutability triggers, which synchronization cannot install.
 
 ## Separate role APIs
 
-| Action                                      | Super Admin                                   | Admin                                    |
-| ------------------------------------------- | --------------------------------------------- | ---------------------------------------- |
-| Login                                       | `POST /api/v1/superadmin/auth/login`          | `POST /api/v1/admin/auth/login`          |
-| Password setup                              | `POST /api/v1/superadmin/auth/setup-password` | `POST /api/v1/admin/auth/setup-password` |
-| Identity                                    | `GET /api/v1/superadmin/auth/me`              | `GET /api/v1/admin/auth/me`              |
-| Logout                                      | `POST /api/v1/superadmin/auth/logout`         | `POST /api/v1/admin/auth/logout`         |
-| Invite/list/resend/revoke Admin invitations | `/api/v1/superadmin/invitations`              | Unavailable                              |
-| Audit logs                                  | `GET /api/v1/superadmin/audit-logs`           | Unavailable                              |
+| Action                                | Super Admin                                   | Admin                                    |
+| ------------------------------------- | --------------------------------------------- | ---------------------------------------- |
+| Login                                 | `POST /api/v1/superadmin/auth/login`          | `POST /api/v1/admin/auth/login`          |
+| Password setup                        | `POST /api/v1/superadmin/auth/setup-password` | `POST /api/v1/admin/auth/setup-password` |
+| Identity                              | `GET /api/v1/superadmin/auth/me`              | `GET /api/v1/admin/auth/me`              |
+| Logout                                | `POST /api/v1/superadmin/auth/logout`         | `POST /api/v1/admin/auth/logout`         |
+| Re-authenticate (step-up)             | `POST /api/v1/superadmin/auth/reauthenticate` | `POST /api/v1/admin/auth/reauthenticate` |
+| Invite/list/resend/revoke invitations | `/api/v1/superadmin/invitations`              | Unavailable                              |
+| List admin accounts                   | `GET /api/v1/superadmin/admins`               | Unavailable                              |
+| Promote/demote                        | `PATCH /api/v1/superadmin/admins/{id}/role`   | Unavailable                              |
+| Deactivate                            | `PATCH /api/v1/superadmin/admins/{id}/status` | Unavailable                              |
+| Audit logs                            | `GET /api/v1/superadmin/audit-logs`           | Unavailable                              |
 
 Login, session authentication, and password setup enforce the role associated with
 the URL. Cookies have separate names and paths. The previous privileged
 `/admin/invitations` and `/admin/audit-logs` paths are removed. Existing Super Admin
 sessions issued under the old admin cookie must log in through the new URL.
-The unique partial index `uq_single_super_admin` on `users.role` allows at most one Super Admin,
-including pending and disabled identities, while allowing many Admins. Apply the
-single-Super-Admin and shared-identity migrations after the initial Admin Portal migration.
+At most two Super Admin slots can be in use (see "Super Admin limit" below), while
+Admins are unlimited. Apply the shared-identity and role-lifecycle migrations after
+the initial Admin Portal migration.
 
 ## Local test Super Admin
 
@@ -87,13 +91,13 @@ automatically; Swagger UI cannot override this browser-controlled header.
 
 ## Production onboarding decision
 
-Use one operator-run bootstrap command for the sole Super Admin. It sends a
+Use one operator-run bootstrap command for the first Super Admin. It sends a
 one-use password-setup link and never accepts a default production password.
 `POST /superadmin/auth/setup-password` consumes this invitation; it cannot create
 an account without a valid token. There is no public Super Admin registration API.
-After login, the Super Admin invites Admins through the invitations API, and each
-Admin completes `/admin/auth/setup-password`. Future Admins cannot self-register
-or select a privileged role.
+After login, the Super Admin invites Admins (or a second Super Admin) through the
+invitations API, and each invitee completes the setup endpoint for their portal.
+Nobody can self-register or choose their own role; only a Super Admin sets a role.
 
 ## Bootstrap
 
@@ -171,9 +175,8 @@ the matching `/superadmin/auth/setup-password` or `/admin/auth/setup-password`. 
 expire after 24 hours. Setup does not log the account in.
 
 Admin and Super Admin can authenticate and view their own identity. Only Super
-Admin can create, list, resend, or revoke Admin invitations and read audit logs.
-The invite API does not accept a role. Additional Super Admin creation, role
-changes, account-management screens, MFA/SSO, and ongoing password recovery are
+Admin can invite, list, resend, or revoke invitations, manage admin accounts, and
+read audit logs. MFA/SSO, admin reactivation, and ongoing password recovery are
 outside this phase. Agree a credential-recovery procedure before production use.
 All identities now live in `users`, including `admin` and `super_admin` roles.
 `admin_accounts` holds a unique `user_id` plus internal status and timestamps.
@@ -232,9 +235,66 @@ DELETE FROM admin_auth_throttles WHERE expires_at < now();
 DELETE FROM admin_sessions WHERE expires_at < now() OR revoked_at IS NOT NULL;
 ```
 
-Account disabling can be performed by an authorized database operator until the
-account-management API is implemented. The next request rejects existing sessions.
-Do not delete audit history when disabling or removing an account.
+Deactivate accounts with `PATCH /superadmin/admins/{id}/status`; see "Role management
+and deactivation" below. Do not delete audit history when disabling an account.
+
+## Super Admin limit
+
+At most **two** Super Admin slots can be in use. A slot is held by an active Super
+Admin, or by a pending one whose invitation is open and unexpired. Revoking or
+letting an invitation expire frees its slot; resending it checks the limit again.
+Deactivating a Super Admin frees their slot.
+
+Invite a Super Admin with `POST /superadmin/invitations` and `"role": "super_admin"`
+(the default is `admin`). When no slot is free, invitations, resends, and
+promotions return `409 Super Admin limit reached`.
+
+The limit is enforced twice. The service checks it under a PostgreSQL advisory lock
+and returns a clean 409. Triggers on `users`, `admin_invitations`, and
+`admin_accounts`, installed by `1793100006000-add-admin-role-lifecycle.ts`, take the
+same lock and reject any write that would exceed it, so concurrent requests or
+manual SQL cannot create a third. Rolling that migration back restores the
+single-Super-Admin index and fails if two Super Admins exist.
+
+## Role management and deactivation
+
+- `GET /superadmin/admins` lists Admin and Super Admin accounts (filters: `role`,
+  `status`) and returns `super_admin_slots: { used, max }`.
+- `PATCH /superadmin/admins/{id}/role` with `{ "role": "super_admin" | "admin" }`.
+  Promotion needs a free slot. Demotion needs another active Super Admin to remain.
+  Only active accounts can change role.
+- `PATCH /superadmin/admins/{id}/status` with `{ "status": "disabled" }`. Disabling
+  also revokes any open setup invitation. Nothing is deleted, so history and
+  references are kept. Reactivation is not available yet; `"active"` returns 422.
+
+Neither endpoint toggles: the body states the target role or status. Nobody can
+change their own role or deactivate themselves, and the last active Super Admin
+can never be demoted or disabled. Every change revokes all of the target's
+sessions, so it applies immediately. Every attempt, including failed and denied
+ones, is audited as `admin.role.change` or `admin.deactivate`. Regular Admins have
+no access to these endpoints.
+
+## Step-up authentication
+
+Inviting, changing a role, and deactivating require the session to have
+authenticated within the last **5 minutes**. Login counts. After that, call
+`POST /auth/reauthenticate` with `{ "password": "..." }` (plus CSRF) on the same
+portal; the response includes `reauthenticated_until`. Without it, sensitive
+requests return `403 Recent authentication required...` and are audited as
+`admin.step_up` (denied). Wrong passwords return 403 and count toward the lockout.
+
+## Login lockout
+
+After **5 failed** logins or re-authentications for an email within 15 minutes,
+that email is locked for **15 minutes**: requests return `429 Too many failed
+attempts. Try again in N minutes.`, even with the correct password. Failures are
+counted per normalized email whether or not an account exists, so a lockout does
+not reveal which emails are admins. A successful login resets the count. Lockouts
+are audited as `admin.login.locked`. Existing sessions are not ended by a lockout.
+The per-IP throttle described above still applies on top.
+
+Anyone who knows an admin's email can lock that account out for 15 minutes; with
+two Super Admins, the other can still act during that time.
 
 ## Verification
 

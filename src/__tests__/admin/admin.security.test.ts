@@ -92,12 +92,21 @@ describe("Admin security contracts", () => {
       loginSchema.parse({ email: " ADMIN@Example.com ", password: "password" })
         .email,
     ).toBe("admin@example.com");
+    // Role is accepted only on the Super-Admin-only invitation route.
+    expect(invitationSchema.parse({ email: "admin@example.com" }).role).toBe(
+      "admin",
+    );
     expect(
-      invitationSchema.safeParse({
+      invitationSchema.parse({
         email: "admin@example.com",
         role: "super_admin",
-      }).success,
-    ).toBe(false);
+      }).role,
+    ).toBe("super_admin");
+    for (const role of ["talent", "recruiter", "owner"])
+      expect(
+        invitationSchema.safeParse({ email: "admin@example.com", role })
+          .success,
+      ).toBe(false);
   });
   it("requires a strong setup password and opaque token", () => {
     expect(
